@@ -17,7 +17,7 @@ wget_text_arguments_file=""
 
 load_handler() {
 	local file="$1"
-	source -- "./Build/libraries/ex10dead-bibliography/library/$file" || exit 1
+	source -- "./Build/libraries/ex10dead-book-bibliography/library/$file" || exit 1
 }
 
 status_wanted() {

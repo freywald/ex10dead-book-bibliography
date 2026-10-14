@@ -3,7 +3,7 @@
 source -- "Build/libraries/sourcetree-datafile-format/sourcetree-datafile-format" || exit 1
 source -- "Build/libraries/sourcetree-datafile-format/sourcetree-datafile-format.bibliography" || exit 1
 source -- "Build/libraries/build-base" || exit 1
-source -- "./Build/libraries/ex10dead-bibliography/library/utilities/utilities" || exit 1
+source -- "./Build/libraries/ex10dead-book-bibliography/library/utilities/utilities" || exit 1
 
 # configuration start
 
