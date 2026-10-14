@@ -70,8 +70,8 @@ handler_wget_text_backup() {
 				i=$((i + 1))
 			done
 
-			mv -- "$expected_zip" "$dest" || return $?
-			[[ -f "$expected_zip.etag" ]] && mv -- "$expected_zip.etag" "${dest%.zip}.etag" || return $?
+			mv -- "$expected_zip" "$dest"
+			[[ -f "$expected_zip.etag" ]] && mv -- "$expected_zip.etag" "${dest%.zip}.etag"
 
 			__info "Moved zip backup %s" "$dest"
 			return 0
@@ -84,9 +84,9 @@ handler_wget_text_backup() {
 		dest="$backup_dir/wget-text-${stamp}_$i.zip"
 		i=$((i + 1))
 	done
-	dest="$(realpath --canonicalize-missing -- "$dest")" || return $?
+	dest="$(realpath --canonicalize-missing -- "$dest")"
 	__info "Writing backup zip %s" "$dest"
-	(cd -- "$directory" && zip --no-wild --test --move "$dest" -- ".") || return $?
+	(cd -- "$directory" && zip --no-wild --test --move "$dest" -- ".")
 }
 
 handler_wget_text_download() {
@@ -139,6 +139,7 @@ handler_wget_text_download() {
 		handler_wget_text_backup "$work" || return $?
 		return "$status"
 	fi
+
 	if $wget_text_output_as_zip; then
 		mkdir --parents -- "$(dirname -- "$expected_zip")"
 		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || return $?

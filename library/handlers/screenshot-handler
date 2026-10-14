@@ -64,7 +64,7 @@ handler_screenshot_backup_file() {
 	[[ -f "$file" ]] || return 0
 	local hash ext name dest backup_dir status=0
 
-	hash="$(sha256sum -- "$file" | awk '{print $1}')" || return $?
+	hash="$(sha256sum -- "$file" | awk '{print $1}')"
     [[ -n "$hash" ]] || return 1
 
 	ext="${file##*.}"
@@ -77,6 +77,9 @@ handler_screenshot_backup_file() {
 	fi
 	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
 	abort_on_interrupt "$status"
+	if (( status != 0 )); then
+		return "$status"
+	fi
 	__info "Wrote hash backup %s" "$dest"
 }
 
@@ -145,7 +148,7 @@ handler_screenshot_twitter_cookies_json() {
 		return 1
 	fi
 
-	printf '%s\n' "${json_items[@]}" | jq --slurp '.' || abort_on_interrupt $?
+	printf '%s\n' "${json_items[@]}" | jq --slurp '.'
 }
 
 handler_screenshot_cookies_to_storage_state() {
@@ -154,7 +157,7 @@ handler_screenshot_cookies_to_storage_state() {
 	local cookies
 
 	cookies="$(handler_screenshot_twitter_cookies_json "$cookie_file")" || return 55
-	jq --null-input --argjson cookies "$cookies" '{cookies: $cookies, origins: []}' >| "$out_json" || abort_on_interrupt $?
+	jq --null-input --argjson cookies "$cookies" '{cookies: $cookies, origins: []}' >| "$out_json"
 }
 
 handler_screenshot_require_page_script() {
@@ -220,6 +223,7 @@ handler_make_screenshot_with_shot_scraper() {
 	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$js_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status=$?
 	cat -- "$log_file" >&2
 	abort_on_interrupt "$status"
+
 	if grep --quiet 'status of 429' -- "$log_file"; then
 		handler_screenshot_log_failure "$url" "HTTP 429" "$log_file"
 		__warn "HTTP 429 while screenshotting %s, screenshot file not kept" "$url"

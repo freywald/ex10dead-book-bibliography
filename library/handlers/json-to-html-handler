@@ -141,7 +141,7 @@ handler_json_to_html_backup() {
 		dest="$backup_dir/json-to-html-${mtime}_$i.zip"
 		i=$((i + 1))
 	done
-	dest="$(realpath --canonicalize-missing -- "$dest")" || return $?
+	dest="$(realpath --canonicalize-missing -- "$dest")"
 	local -a files=()
 	[[ -f "$output" ]] && files+=("$output")
 	[[ -f "$manifest" ]] && files+=("$manifest")

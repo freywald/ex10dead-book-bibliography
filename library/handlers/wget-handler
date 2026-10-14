@@ -37,7 +37,7 @@ handler_wget_parse_arguments() {
 
 handler_wget_is_html_document() {
 	local mime
-	mime="$(file -b --mime-type -- "$1")" || abort_on_interrupt $?
+	mime="$(file -b --mime-type -- "$1")"
 	[[ "$mime" == text/html* || "$mime" == application/xhtml+xml* ]]
 }
 
@@ -64,7 +64,7 @@ function handler_wget_download() {
 	local headers=""
 	local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 	[[ -n "${gallery_dl_cookie_file-}" && -f "$wget_cookie_file" ]] && curl_args+=(--cookie "$wget_cookie_file")
-	headers="$(curl "${curl_args[@]}" -- "$url")" || abort_on_interrupt $?
+	headers="$(curl "${curl_args[@]}" -- "$url")"
 	headers="${headers-}"
 	local http_status="${headers: -3}"
 	http_status="${http_status:-000}"
@@ -90,13 +90,27 @@ function handler_wget_download() {
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
 	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
+
 	remote_mtime=0
+	local status=0
 	if [[ -n "$last_modified" ]]; then
-		remote_mtime="$(date -d "$last_modified" "+%s")" || { __error "bad Last-Modified %s" "$last_modified"; abort_on_interrupt $?; }
+		remote_mtime="$(date -d "$last_modified" "+%s")" || status=$?
+		abort_on_interrupt "$status"
+		if (( status != 0 )); then
+			__error "bad Last-Modified %s" "$last_modified"
+			return "$status"
+		fi
 	fi
+
 	local_mtime=0
+	status=0
 	if [[ -f "$zip_archive" ]]; then
-		local_mtime="$(stat -c "%Y" -- "$zip_archive")" || { __error "cannot stat %s" "$zip_archive"; abort_on_interrupt $?; }
+		local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status=$?
+		abort_on_interrupt "$status"
+		if (( status != 0 )); then
+			__error "cannot stat %s" "$zip_archive"
+			return "$status"
+		fi
 	fi
 
 	__debug "$remote_mtime $(date -d "@$remote_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
@@ -159,6 +173,9 @@ function handler_wget_download() {
 
 	wget --header="Accept: text/html" --wait="$wait_seconds" --random-wait --limit-rate="$limit_rate" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status=$?
 	abort_on_interrupt "$status"
+	if (( status != 0 )); then
+		return "$status"
+	fi
 
 	local -a html_files=()
 	local file
@@ -303,12 +320,12 @@ function handler_wget_download() {
 		-e 's| href="\([^:"]*\)"| href="files/\1"|g' \
 		-e 's| src='\''\([^:'\'']*\)'\''| src='\''files/\1'\''|g' \
 		-e 's| href='\''\([^:'\'']*\)'\''| href='\''files/\1'\''|g' \
-		-- "$file" || abort_on_interrupt $?
+		-- "$file"
 
 	local css_file
 	for css_file in "$directory/files/"*.css; do
 		[[ -f "$css_file" ]] || continue
-		sed -i 's|url(["'\'']*\([^:'\''" )]*\)["'\'']*)|url("\1")|g' -- "$css_file" || abort_on_interrupt $?
+		sed -i 's|url(["'\'']*\([^:'\''" )]*\)["'\'']*)|url("\1")|g' -- "$css_file"
 	done
 
 	ln -nfs -- "files/$(basename -- "$file")" "$directory/index.html"
@@ -316,19 +333,19 @@ function handler_wget_download() {
 	if $backup_existing_archive && [[ -f "$zip_archive" ]]; then
 		local backup_dir backup_name
 		backup_dir="$(dirname -- "$(dirname -- "$zip_archive")")/__backups"
-		mkdir --parents -- "$backup_dir" || return $?
+		mkdir --parents -- "$backup_dir"
 		backup_name="$(basename -- "$zip_archive" ".zip").$(date -d "@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
-		mv -- "$zip_archive" "$backup_dir/$backup_name" || abort_on_interrupt $?
-		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag" || abort_on_interrupt $?
+		mv -- "$zip_archive" "$backup_dir/$backup_name"
+		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag"
 	fi
 
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
-	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")" || abort_on_interrupt $?
-	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".") || abort_on_interrupt $?
+	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")"
+	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".")
 	rmdir -- "$directory" 2>"/dev/null" || true
 
 	if (( remote_mtime > 0 )); then
-		touch -d "@$remote_mtime" "$zip_archive" || abort_on_interrupt $?
+		touch -d "@$remote_mtime" "$zip_archive"
 	fi
 
 	[[ -n "$etag" ]] && printf '%s\n' "$etag" >| "$etag_file"

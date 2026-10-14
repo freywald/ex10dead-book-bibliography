@@ -31,7 +31,7 @@ handler_singlefile_backup_file() {
 	[[ -f "$file" ]] || return 0
 	local hash ext name dest backup_dir status=0
 
-	hash="$(sha256sum -- "$file" | awk '{print $1}')" || return $?
+	hash="$(sha256sum -- "$file" | awk '{print $1}')"
     [[ -n "$hash" ]] || return 1
 
 	ext="${file##*.}"
@@ -44,7 +44,12 @@ handler_singlefile_backup_file() {
 	fi
 	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
 	abort_on_interrupt "$status"
+	if (( status != 0 )); then
+		return "$status"
+	fi
+
 	__info "Wrote hash backup %s" "$dest"
+	return 0
 }
 
 function handler_singlefile_download() {
@@ -66,5 +71,9 @@ function handler_singlefile_download() {
 	mkdir --parents -- "$work"
 	"./$singlefile_library_path/single-file" --browser-cookies-file="$singlefile_cookie_file" --browser-wait-until="${singlefile_wait_until:-networkIdle}" --browser-wait-until-delay=2000 --browser-load-max-time=120000 --remove-hidden-elements=false --remove-unused-styles=false --remove-unused-fonts=false --remove-alternative-fonts=false --remove-alternative-medias=false --remove-alternative-images=false --group-duplicate-images=false --compress-HTML=false --compress-CSS=false --block-scripts=true --block-videos=false --block-audios=false --load-deferred-images=true "$url" "$output_directory" || status=$?
 	abort_on_interrupt "$status"
-	return "${status:-0}"
+	if (( status != 0 )); then
+		return "$status"
+	fi
+
+	return 0
 }

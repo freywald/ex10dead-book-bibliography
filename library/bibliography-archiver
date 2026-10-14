@@ -23,6 +23,14 @@ declare -gA handler_leaf=()
 
 # script task start
 
+abort_on_interrupt() {
+	local status="${1:-$?}"
+	if (( status == 130 || status == 143 )); then
+		exit "$status"
+	fi
+	return 0
+}
+
 apply_configuration_enables() {
 	verify_handler_layout || local_exit_failsafe
 
@@ -127,7 +135,7 @@ print_archive_status() {
 		zip_display="${zip_display#/}"
 		local gallerydl_file="" gallerydl_display="" tweet_id
 		tweet_id="$(twitter_status_id "$queued_url")"
-		gallerydl_file="$(gallerydl_json_for_url "$queued_url")" || abort_on_interrupt $?
+		gallerydl_file="$(gallerydl_json_for_url "$queued_url")"
 		if [[ -n "$gallerydl_file" && -f "$gallerydl_file" ]]; then
 			gallerydl_display="${gallerydl_file#"$archive_path"}"
 			gallerydl_display="${gallerydl_display#/}"
@@ -176,7 +184,7 @@ print_archive_status() {
 		if $probe && $archive_run_wget; then
 			local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 			[[ -n "${gallery_dl_cookie_file-}" && -f "$gallery_dl_cookie_file" ]] && curl_args+=(--cookie "$gallery_dl_cookie_file")
-			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || abort_on_interrupt $?
+			headers="$(curl "${curl_args[@]}" -- "$queued_url")"
 			headers="${headers-}"
 			http_status="${headers: -3}"
 			http_status="${http_status:-000}"
@@ -192,12 +200,25 @@ print_archive_status() {
 				last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
 				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 				remote_mtime=0
+				local status=0
 				if [[ -n "$last_modified" ]]; then
-					remote_mtime="$(date -d "$last_modified" "+%s")" || { __error "bad Last-Modified %s" "$last_modified"; abort_on_interrupt $?; }
+					remote_mtime="$(date -d "$last_modified" "+%s")" || status=$?
+					abort_on_interrupt "$status"
+					if (( status != 0 )); then
+						__error "bad Last-Modified %s" "$last_modified"
+						return "$status"
+					fi
 				fi
+
 				local_mtime=0
+				status=0
 				if [[ -f "$zip_archive" ]]; then
-					local_mtime="$(stat -c "%Y" -- "$zip_archive")" || { __error "cannot stat %s" "$zip_archive"; abort_on_interrupt $?; }
+					local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status=$?
+					abort_on_interrupt "$status"
+					if (( status != 0 )); then
+						__error "cannot stat %s" "$zip_archive"
+						return "$status"
+					fi
 				fi
 			fi
 		fi
@@ -463,7 +484,7 @@ function manage_archive_for_url() {
 	fi
 	if $archive_run_gallerydl; then
 		per_url_handler=true
-		gallerydl_ok_file="$(gallerydl_json_for_url "$url")" || abort_on_interrupt $?
+		gallerydl_ok_file="$(gallerydl_json_for_url "$url")"
 		[[ -f "$gallerydl_ok_file" ]] && wrote=true
 	fi
 	if $archive_run_wget_text; then
