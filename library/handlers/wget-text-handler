@@ -69,8 +69,10 @@ handler_wget_text_backup() {
 				dest="$backup_dir/$(basename -- "$expected_zip" .zip)-${stamp}_$i.zip"
 				i=$((i + 1))
 			done
-			mv -- "$expected_zip" "$dest"
-			[[ -f "$expected_zip.etag" ]] && mv -- "$expected_zip.etag" "${dest%.zip}.etag"
+
+			mv -- "$expected_zip" "$dest" || return $?
+			[[ -f "$expected_zip.etag" ]] && mv -- "$expected_zip.etag" "${dest%.zip}.etag" || return $?
+
 			__info "Moved zip backup %s" "$dest"
 			return 0
 		fi

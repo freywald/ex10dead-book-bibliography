@@ -88,18 +88,6 @@ verify_handler_layout() {
 		fi
 	done
 
-	if [[ "${handler_enabled[gallery-dl]}" == "true" ]]; then
-		gallery_real="$(realpath --canonicalize-existing -- "${handler_output_path[gallery-dl]}")"
-		for name in wget wget-text screenshot singlefile json-to-html; do
-			[[ "${handler_enabled[$name]}" == "true" ]] || continue
-			other_real="$(realpath --canonicalize-existing -- "${handler_output_path[$name]}")"
-			if [[ "$gallery_real" == "$other_real" ]]; then
-				__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
-				return 1
-			fi
-		done
-	fi
-
 	if [[ -z "${temporary_files_path-}" ]]; then
 		__error "temporary_files_path is required when a handler is enabled"
 		return 1

@@ -85,23 +85,19 @@ function handler_wget_download() {
 	__debug "$url"
 	__debug "$headers"
 
-	last_modified="$(echo "$headers" | grep -i '^last-modified:' | head -1 | cut -d: -f2-)" || abort_on_interrupt $?
+	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || true; } | head -1 | cut -d: -f2-)"
 	last_modified="${last_modified-}"
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
-
+	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 	remote_mtime=0
 	if [[ -n "$last_modified" ]]; then
-		remote_mtime="$(date -d "$last_modified" "+%s" 2>"/dev/null")" || abort_on_interrupt $?
-		remote_mtime="${remote_mtime:-0}"
+		remote_mtime="$(date -d "$last_modified" "+%s")" || { __error "bad Last-Modified %s" "$last_modified"; abort_on_interrupt $?; }
 	fi
-
-	local etag=""
-	etag="$(echo "$headers" | grep -i '^etag:' | head -1 | cut -d: -f2- | tr -d '\" ')" || abort_on_interrupt $?
-
-	local local_mtime=0
-	[[ -f "$zip_archive" ]] && local_mtime="$(stat -c "%Y" -- "$zip_archive" 2>"/dev/null")" || abort_on_interrupt $?
-	local_mtime="${local_mtime:-0}"
+	local_mtime=0
+	if [[ -f "$zip_archive" ]]; then
+		local_mtime="$(stat -c "%Y" -- "$zip_archive")" || { __error "cannot stat %s" "$zip_archive"; abort_on_interrupt $?; }
+	fi
 
 	__debug "$remote_mtime $(date -d "@$remote_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
 	__debug "$local_mtime $(date -d "@$local_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
@@ -323,7 +319,7 @@ function handler_wget_download() {
 		mkdir --parents -- "$backup_dir" || return $?
 		backup_name="$(basename -- "$zip_archive" ".zip").$(date -d "@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
 		mv -- "$zip_archive" "$backup_dir/$backup_name" || abort_on_interrupt $?
-		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag"
+		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag" || abort_on_interrupt $?
 	fi
 
 	mkdir --parents -- "$(dirname -- "$zip_archive")"

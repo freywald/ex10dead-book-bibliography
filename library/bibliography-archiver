@@ -187,6 +187,9 @@ print_archive_status() {
 				remote_note="http ${http_status}"
 			else
 				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || true; } | head -1 | cut -d: -f2-)"
+				last_modified="${last_modified-}"
+				last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
+				last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
 				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 				remote_mtime=0
 				if [[ -n "$last_modified" ]]; then
