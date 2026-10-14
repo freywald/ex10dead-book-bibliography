@@ -1,0 +1,165 @@
+#!/bin/bash
+
+source -- "./Build/libraries/ex10dead-bibliography/library/utilities/load-configuration" || exit 1
+
+load_handler() {
+	local file="$1"
+	source -- "./Build/libraries/ex10dead-bibliography/library/$file" || exit 1
+}
+
+handler_base_path() {
+	local name="$1"
+	local configured="${handler_output_path[$name]-}"
+	if [[ -n "$configured" ]]; then
+		if [[ "$configured" == /* ]]; then
+			printf '%s\n' "$configured"
+		else
+			printf '%s\n' "$output_directory_path/$configured"
+		fi
+		return 0
+	fi
+	case "$name" in
+		gallery-dl) printf '%s\n' "$output_directory_path/$gallerydl_dump_directory_name" ;;
+		*) printf '%s\n' "$output_directory_path/$web_archive_directory_name" ;;
+	esac
+}
+
+archive_id_matches() {
+	local id="$1"
+	[[ -z "$filter_by_id" ]] && return 0
+	[[ "$id" == "$filter_by_id" || "$id" == "$filter_by_id"/* ]]
+}
+
+archive_status_etag_note() {
+	local zip_archive="$1" etag="$2" zip_ok="$3" remote_mtime="$4" local_mtime="$5"
+	local stored_etag="" etag_note remote_note
+	[[ -f "$zip_archive.etag" ]] && stored_etag="$(< "$zip_archive.etag")"
+	if [[ -n "$etag" && -n "$stored_etag" && "$etag" == "$stored_etag" ]]; then
+		etag_note="etag-match"
+	elif [[ -n "$etag" && -n "$stored_etag" ]]; then
+		etag_note="etag-differs"
+	elif [[ -n "$etag" ]]; then
+		etag_note="etag-new"
+	else
+		etag_note="no-etag"
+	fi
+	if ! $zip_ok; then
+		remote_note="download/$etag_note"
+	elif (( remote_mtime > 0 )) && (( remote_mtime <= local_mtime + 60 )); then
+		remote_note="up-to-date/last-modified/$etag_note"
+	elif (( remote_mtime > local_mtime + 60 )); then
+		remote_note="remote-newer/$etag_note"
+	elif [[ "$etag_note" == "etag-match" ]]; then
+		remote_note="up-to-date/etag"
+	elif [[ "$etag_note" == "etag-differs" ]]; then
+		remote_note="etag-differs"
+	else
+		remote_note="no-last-modified/$etag_note"
+	fi
+	printf '%s\n' "$remote_note"
+}
+
+handler_id_dir() {
+	local name="$1" id="$2" base
+	base="$(handler_base_path "$name")"
+	printf '%s\n' "$base/$id"
+}
+
+handler_leaf_dir() {
+	local name="$1" id="$2" leaf id_dir
+	if [[ -z "${handler_leaf[$name]+set}" ]]; then
+		if [[ "$name" == "gallery-dl" ]]; then
+			leaf=""
+		else
+			leaf="$name"
+		fi
+	else
+		leaf="${handler_leaf[$name]}"
+	fi
+	id_dir="$(handler_id_dir "$name" "$id")"
+	if [[ -n "$leaf" ]]; then
+		printf '%s\n' "$id_dir/$leaf"
+	else
+		printf '%s\n' "$id_dir"
+	fi
+}
+
+archive_zip_path() {
+	local url="$1"
+	local id="$2"
+	local url_kind="$3"
+	local handler="${4:-wget}"
+	local leaf_dir zip_archive url_pretty
+	leaf_dir="$(handler_leaf_dir "$handler" "$id")"
+	if [[ "$url_kind" == "entry" ]]; then
+		zip_archive="$leaf_dir/$(basename -- "$id").zip"
+	elif [[ "$url_kind" == "field" || "$url_kind" == "attribute-field" ]]; then
+		url_pretty="$(sanitize_url_for_dirname "$url")"
+		zip_archive="$leaf_dir/$url_pretty.zip"
+	else
+		__error "unknown url kind %s" "$url_kind"
+		return 1
+	fi
+	realpath --canonicalize-missing -- "$zip_archive"
+}
+
+twitter_status_id() {
+    local url="$1"
+    if [[ "$url" =~ /status/([0-9]+) ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}"
+    fi
+}
+
+handler_gallerydl_warn_extra_json() {
+	local dir="$1" expected="$2" f base
+	[[ -d "$dir" ]] || return 0
+	for f in "$dir"/*.json "$dir"/*.JSON; do
+		[[ -f "$f" ]] || continue
+		base="$(basename -- "$f")"
+		[[ "$base" == "$expected" ]] && continue
+		__warn "extra json in %s: %s (expected %s; quoted tweets have their own directory)" "$dir" "$base" "$expected"
+	done
+}
+
+gallerydl_json_for_url() {
+	local url="$1" tweet_id id_path dir json
+	tweet_id="$(twitter_status_id "$url")"
+	[[ -n "$tweet_id" ]] || return 1
+	id_path="${queued_ids[$url]-}"
+	[[ -n "$id_path" ]] || return 1
+	dir="$(handler_leaf_dir gallery-dl "$id_path")"
+	json="$dir/$tweet_id.json"
+	handler_gallerydl_warn_extra_json "$dir" "$tweet_id.json"
+	[[ -f "$json" ]] || return 1
+	printf '%s\n' "$json"
+}
+
+nearest_parent_id() {
+	local index="$1" p id
+	p="$(parent_index_of "$index")" || return 1
+	while [[ -n "$p" ]]; do
+		id="$(get_metadata "_id" "$p")"
+		if [[ -n "$id" ]]; then
+			printf '%s\n' "$id"
+			return 0
+		fi
+		p="$(parent_index_of "$p")" || break
+	done
+
+	return 1
+}
+
+nearest_non_reference_parent_id() {
+	local index="$1" p id
+	p="$(parent_index_of "$index")" || return 1
+	while [[ -n "$p" ]]; do
+		id="$(get_metadata "_id" "$p")"
+		if [[ -n "$id" && "$id" != *"※"* ]]; then
+			printf '%s\n' "$id"
+			return 0
+		fi
+		p="$(parent_index_of "$p")" || break
+	done
+
+	return 1
+}

@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Sourced by bibliography-archiver. Reads --configuration-file into the
+# shell variables the handlers already use. Tabs in the YAML are expanded
+# to 4 spaces before parsing.
+
+load_configuration_file() {
+	local file="$1"
+	[[ -f "$file" ]] || { __error "configuration file not found: %s" "$file"; return 1; }
+	command -v yq >/dev/null || { __error "yq is required to read %s" "$file"; return 1; }
+	local json
+	json="$(expand -t 4 -- "$file" | yq --output-format=json '.' )" || return 1
+
+	temporary_files_path="$(jq --raw-output '.temporary_files_path // empty' <<<"$json")"
+	gallery_dl_cookie_file="$(jq --raw-output '.gallery_dl_cookie_file // empty' <<<"$json")"
+	singlefile_cookie_file="$(jq --raw-output '.singlefile_cookie_file // empty' <<<"$json")"
+	singlefile_library_path="$(jq --raw-output '.singlefile_library_path // empty' <<<"$json")"
+	screenshot_cookie_file="$(jq --raw-output '.screenshot_cookie_file // empty' <<<"$json")"
+	screenshot_page_script="$(jq --raw-output '.screenshot_page_script // empty' <<<"$json")"
+	screenshot_maximum_height="$(jq --raw-output '.screenshot_maximum_height // empty' <<<"$json")"
+	screenshot_width="$(jq --raw-output '.screenshot_width // empty' <<<"$json")"
+	screenshot_viewport_height="$(jq --raw-output '.screenshot_viewport_height // empty' <<<"$json")"
+	screenshot_browser_device_pixel_ratio="$(jq --raw-output '.screenshot_browser_device_pixel_ratio // empty' <<<"$json")"
+	screenshot_zoom="$(jq --raw-output '.screenshot_zoom // empty' <<<"$json")"
+	screenshot_reply_count="$(jq --raw-output '.screenshot_reply_count // empty' <<<"$json")"
+	wget_text_arguments_file="$(jq --raw-output '.wget_text_arguments_file // empty' <<<"$json")"
+	wget_text_arguments=()
+	while IFS= read -r line; do
+		[[ -n "$line" ]] && wget_text_arguments+=("$line")
+	done < <(jq --raw-output '.wget_text_arguments[]? // empty' <<<"$json")
+	wget_text_output_as_zip="$(jq --raw-output '.handlers["wget-text"].output_as_zip // true' <<<"$json")"
+
+	declare -gA handler_enabled=()
+	declare -gA handler_output_path=()
+	declare -gA handler_leaf=()
+	local name
+	for name in gallery-dl wget wget-text screenshot singlefile json-to-html; do
+		handler_enabled["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled // false' <<<"$json")"
+		handler_output_path["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].output_path // empty' <<<"$json")"
+		handler_leaf["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // $n' <<<"$json")"
+	done
+	handler_leaf["gallery-dl"]="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json")"
+}
+
+verify_handler_layout() {
+	local name leaf path gallery_real other_real
+	for name in wget wget-text screenshot singlefile json-to-html; do
+		[[ "${handler_enabled[$name]}" == "true" ]] || continue
+		leaf="${handler_leaf[$name]-}"
+		if [[ -z "$leaf" ]]; then
+			__error "leaf_folder must be set for %s" "$name"
+			return 1
+		fi
+	done
+	if [[ "${handler_enabled[gallery-dl]}" == "true" ]]; then
+		gallery_real="$(realpath --canonicalize-missing -- "${handler_output_path[gallery-dl]}")"
+		for name in wget wget-text screenshot singlefile json-to-html; do
+			[[ "${handler_enabled[$name]}" == "true" ]] || continue
+			other_real="$(realpath --canonicalize-missing -- "${handler_output_path[$name]}")"
+			if [[ "$gallery_real" == "$other_real" ]]; then
+				__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
+				return 1
+			fi
+		done
+	fi
+	if [[ -z "${temporary_files_path-}" ]]; then
+		__error "temporary_files_path is required when a handler is enabled"
+		return 1
+	fi
+	local temp_real out_real
+	temp_real="$(realpath --canonicalize-missing -- "$temporary_files_path")"
+	out_real="$(realpath --canonicalize-missing -- "$output_directory_path")"
+	if [[ "$temp_real" == "$out_real" || "$temp_real" == "$out_real"/* ]]; then
+		__error "temporary_files_path %s is inside output path %s" "$temp_real" "$out_real"
+		return 1
+	fi
+}

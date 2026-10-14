@@ -1,0 +1,337 @@
+#!/bin/bash
+
+# configuration start
+
+# configuration end
+
+# script task start
+
+handler_wget_parse_arguments() {
+	local -a arguments=()
+	while (($# > 0)); do
+		if [[ "$1" == "--wget-wait" ]]; then
+			wget_wait="${2-}"
+			shift 2 || __expression_may_fail
+		elif [[ "$1" == "--wget-wait="* ]]; then
+			wget_wait="${1#--wget-wait=}"
+			shift || __expression_may_fail
+		elif [[ "$1" == "--wget-limit-rate" ]]; then
+			wget_limit_rate="${2-}"
+			shift 2 || __expression_may_fail
+		elif [[ "$1" == "--wget-limit-rate="* ]]; then
+			wget_limit_rate="${1#--wget-limit-rate=}"
+			shift || __expression_may_fail
+		elif [[ "$1" == "--wget-text-"* ]]; then
+			arguments+=("$1")
+			shift || __expression_may_fail
+		elif [[ "$1" == "--wget-"* ]]; then
+			__error "unknown wget argument %s" "$1"
+			local_exit_failsafe
+		else
+			arguments+=("$1")
+			shift || __expression_may_fail
+		fi
+	done
+	set -- "${arguments[@]}"
+}
+
+handler_wget_is_html_document() {
+	local mime
+	mime="$(file -b --mime-type -- "$1" 2>/dev/null)" || abort_on_interrupt $?
+	[[ "$mime" == text/html* || "$mime" == application/xhtml+xml* ]]
+}
+
+function handler_wget_download() {
+	local url="$1"
+	local directory="$2"
+	local url_identifier="$3"
+	local url_kind="$4"
+	local status=0
+
+	backup_existing_archive=false
+
+	local work_dir="$directory"
+	local zip_archive
+	zip_archive="$(archive_zip_path "$url" "$url_identifier" "$url_kind" wget)"
+	directory="$temporary_files_path/$(date +%s)-wget/$(basename -- "$url_identifier")"
+	mkdir --parents -- "$directory"
+
+	local etag_file="$zip_archive.etag"
+
+	local stored_etag=""
+	[[ -f "$etag_file" ]] && stored_etag="$(< "$etag_file")"
+
+	local headers=""
+	local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
+	[[ -n "${gallery_dl_cookie_file-}" && -f "$gallery_dl_cookie_file" ]] && curl_args+=(--cookie "$gallery_dl_cookie_file")
+	headers="$(curl "${curl_args[@]}" -- "$url" 2>/dev/null)" || abort_on_interrupt $?
+	headers="${headers-}"
+	local http_status="${headers: -3}"
+	http_status="${http_status:-000}"
+
+	if [[ "$http_status" != 2* ]]; then
+		if [[ -f "$zip_archive" ]]; then
+			__info "HTTP status %s received for %s — File cannot be downloaded – but is already archived!" "$http_status" "[$url_identifier] $url"
+			return
+		else
+			__warn "HTTP status %s received for %s — File cannot be downloaded and cannot be archived!" "$http_status" "[$url_identifier] $url"
+			return
+		fi
+	fi
+
+	local remote_mtime=0
+	local last_modified=""
+
+	__debug "$url"
+	__debug "$headers"
+
+	last_modified="$(echo "$headers" | grep -i '^last-modified:' | head -1 | cut -d: -f2-)" || abort_on_interrupt $?
+	last_modified="${last_modified-}"
+	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
+	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
+
+	remote_mtime=0
+	if [[ -n "$last_modified" ]]; then
+		remote_mtime="$(date -d "$last_modified" "+%s" 2>/dev/null)" || abort_on_interrupt $?
+		remote_mtime="${remote_mtime:-0}"
+	fi
+
+	local etag=""
+	etag="$(echo "$headers" | grep -i '^etag:' | head -1 | cut -d: -f2- | tr -d '\" ')" || abort_on_interrupt $?
+
+	local local_mtime=0
+	[[ -f "$zip_archive" ]] && local_mtime="$(stat -c "%Y" -- "$zip_archive" 2>/dev/null)" || abort_on_interrupt $?
+	local_mtime="${local_mtime:-0}"
+
+	__debug "$remote_mtime $(date -d "@$remote_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
+	__debug "$local_mtime $(date -d "@$local_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
+
+	if (( remote_mtime > 0 )); then
+		local tolerance_in_seconds=60
+		if (( remote_mtime <= local_mtime + tolerance_in_seconds )); then
+			if [[ -f "$zip_archive" ]]; then
+				__info "Skipping %s, archive is up to date (last-modified)" "[$url_identifier] $url"
+				__info "Skipping %s" "[$url_identifier] $url"
+				return
+			else
+				__error "mtime mismatch – File cannot be properly archived!"
+				local_exit_failsafe
+			fi
+		else
+			if [[ -f "$zip_archive" ]]; then
+				if ! $force_update_existing; then
+					__info "Skipping %s, remote is newer but --force-update-existing was not given" "[$url_identifier] $url"
+					return
+				else
+					backup_existing_archive=true
+				fi
+			else
+				__info "Downloading %s, previously not archived" "[$url_identifier] $url"
+			fi
+		fi
+	else
+		if [[ -n "$etag" && -n "$stored_etag" && "$etag" == "$stored_etag" ]]; then
+			__info "Skipping %s, archive is up to date (etag)" "[$url_identifier] $url"
+			return
+		fi
+		if [[ -f "$zip_archive" ]] && ! $force_update_existing; then
+			__info "Skipping %s, archive exists and remote sent no last-modified; pass --force-update-existing to refresh" "[$url_identifier] $url"
+			return
+		fi
+		if ! [[ -f "$zip_archive" ]]; then
+			__info "Downloading %s, previously not archived" "[$url_identifier] $url"
+		else
+			__info "Downloading %s, refreshing existing archive" "[$url_identifier] $url"
+			backup_existing_archive=true
+		fi
+	fi
+
+	if [[ -n "${wget_zip_paths_this_session[$zip_archive]+set}" ]]; then
+		__error "zip path would overwrite a file already written this session: %s" "$zip_archive"
+		local_exit_failsafe
+	fi
+	wget_zip_paths_this_session["$zip_archive"]=1
+
+	mkdir --parents -- "$directory/files"
+
+	local wget_wait=2
+	local wget_limit="500k"
+	if [[ "$url" == *"://web.archive.org/"* || "$url" == *"://web-static.archive.org/"* || "$url" == *"://archive.org/"* ]]; then
+		wget_wait=12
+		wget_limit="200k"
+	fi
+
+	wget --header="Accept: text/html" --wait="$wget_wait" --random-wait --limit-rate="$wget_limit" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status=$?
+	abort_on_interrupt "$status"
+
+	local -a html_files=()
+	local file
+	for file in "$directory/files/"*.html "$directory/files/"*.htm \
+				"$directory/files/"*.xhtml "$directory/files/"*.shtml \
+				"$directory/files/"*.phtml; do
+		[[ -f "$file" ]] || continue
+		html_files+=("$file")
+	done
+
+	if (( ${#html_files[@]} == 0 )); then
+		for file in "$directory/files/"*; do
+			[[ -f "$file" ]] || continue
+			case "${file##*.}" in
+				css|js|mjs|map|jpg|jpeg|png|gif|webp|svg|ico|woff|woff2|ttf|eot|otf|mp4|webm|pdf) continue ;;
+			esac
+			if grep --quiet --ignore-case --max-count=1 --extended-regexp '<(!DOCTYPE[[:space:]]+html|html|head|body)([>[:space:]]|$)' "$file"; then
+				html_files+=("$file")
+			fi
+		done
+	fi
+
+	local content
+	for file in "${html_files[@]}"; do
+		[[ -f "$file" ]] || continue
+		cp -- "$file" "${file}_original"
+
+		content="$(< "$file")"
+
+		# Remove srcset="..." (double quotes)
+		while [[ "$content" =~ srcset=\"[^\"]*\" ]]; do
+			content="${content//"${BASH_REMATCH[0]}"/}"
+		done
+		# Remove srcset='...' (single quotes)
+		while [[ "$content" =~ srcset=\'[^\']*\' ]]; do
+			content="${content//"${BASH_REMATCH[0]}"/}"
+		done
+		# Remove data-srcset="..." (double quotes)
+		while [[ "$content" =~ data-srcset=\"[^\"]*\" ]]; do
+			content="${content//"${BASH_REMATCH[0]}"/}"
+		done
+		# Remove data-srcset='...' (single quotes)
+		while [[ "$content" =~ data-srcset=\'[^\']*\' ]]; do
+			content="${content//"${BASH_REMATCH[0]}"/}"
+		done
+
+		printf '%s' "$content" >| "$file"
+	done
+
+	if (( ${#html_files[@]} == 0 )); then
+		__warn "Download failed (0 html files downloaded)!"
+		file=""
+	elif (( ${#html_files[@]} > 1 )); then
+		local url_nofrag="${url%%\#*}"
+		local url_noquery="${url_nofrag%%\?*}"
+		local url_leaf="${url_noquery%/}"
+		url_leaf="${url_leaf##*/}"
+
+		file=""
+		if [[ -n "$url_leaf" ]]; then
+			if [[ -f "$directory/files/$url_leaf" ]] && handler_wget_is_html_document "$directory/files/$url_leaf"; then
+				file="$directory/files/$url_leaf"
+			elif [[ -f "$directory/files/${url_leaf}.html" ]] && handler_wget_is_html_document "$directory/files/${url_leaf}.html"; then
+				file="$directory/files/${url_leaf}.html"
+			elif [[ -f "$directory/files/${url_leaf}.htm" ]] && handler_wget_is_html_document "$directory/files/${url_leaf}.htm"; then
+				file="$directory/files/${url_leaf}.htm"
+			fi
+		fi
+
+		if [[ -z "$file" ]]; then
+			local index_name
+			for index_name in \
+				index.html index.htm index.xhtml index.shtml \
+				index.php default.html default.htm default.asp \
+				home.html home.htm welcome.html; do
+				if [[ -f "$directory/files/$index_name" ]] && handler_wget_is_html_document "$directory/files/$index_name"; then
+					file="$directory/files/$index_name"
+					break
+				fi
+			done
+			if [[ -z "$file" ]]; then
+				local numbered
+				for numbered in "$directory/files/"index.html.[0-9]* "$directory/files/"index.htm.[0-9]*; do
+					[[ -f "$numbered" ]] || continue
+					if handler_wget_is_html_document "$numbered"; then
+						file="$numbered"
+						break
+					fi
+				done
+			fi
+		fi
+
+		if [[ -z "$file" ]]; then
+			local -a main_html=()
+			local candidate base
+			for candidate in "${html_files[@]}"; do
+				base="$(basename -- "$candidate")"
+				case "$base" in
+					*.png.html|*.jpg.html|*.jpeg.html|*.gif.html|*.webp.html|*.svg.html|*.ico.html)
+						continue
+						;;
+					ns.html@*|ns.htm@*|*GTM*|*gtm*)
+						continue
+						;;
+				esac
+				handler_wget_is_html_document "$candidate" || continue
+				main_html+=("$candidate")
+			done
+			if (( ${#main_html[@]} == 1 )); then
+				file="${main_html[0]}"
+			fi
+		fi
+
+		if [[ -z "$file" || ! -f "$file" ]]; then
+			__warn "could not resolve main HTML for %s in %s (candidates: %s)" \
+				"$url" "$directory/files" "${html_files[*]}"
+			if [[ -f "$zip_archive" ]]; then
+				__warn "leaving existing archive in place: %s" "$zip_archive"
+				return
+			fi
+			__error "File cannot be downloaded and cannot be archived!"
+			local_exit_failsafe
+		fi
+	else
+		file="${html_files[0]}"
+		if [[ -n "$file" && -f "$file" ]] && ! handler_wget_is_html_document "$file"; then
+			file=""
+		fi
+	fi
+
+	if [[ -z "$file" || ! -f "$file" ]]; then
+		if [[ -f "$zip_archive" ]]; then
+			__info "File cannot be downloaded – but is already archived!"
+			return
+		fi
+		__warn "File cannot be downloaded and cannot be archived!"
+		return
+	fi
+
+	sed -i \
+		-e 's| src="\([^:"]*\)"| src="files/\1"|g' \
+		-e 's| href="\([^:"]*\)"| href="files/\1"|g' \
+		-e 's| src='\''\([^:'\'']*\)'\''| src='\''files/\1'\''|g' \
+		-e 's| href='\''\([^:'\'']*\)'\''| href='\''files/\1'\''|g' \
+		-- "$file" || abort_on_interrupt $?
+
+	local css_file
+	for css_file in "$directory/files/"*.css; do
+		[[ -f "$css_file" ]] || continue
+		sed -i 's|url(["'\'']*\([^:'\''" )]*\)["'\'']*)|url("\1")|g' -- "$css_file" || abort_on_interrupt $?
+	done
+
+	ln -nfs -- "files/$(basename -- "$file")" "$directory/index.html"
+
+	if $backup_existing_archive && [[ -f "$zip_archive" ]]; then
+		local backup_dir backup_name
+		backup_dir="$(dirname -- "$(dirname -- "$zip_archive")")/__backups"
+		mkdir --parents -- "$backup_dir"
+		backup_name="$(basename -- "$zip_archive" ".zip").$(date -d "@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
+		mv -- "$zip_archive" "$backup_dir/$backup_name"
+		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag"
+	fi
+
+	mkdir --parents -- "$(dirname -- "$zip_archive")"
+	zip_archive="$(realpath -- "$zip_archive")"
+	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".") || abort_on_interrupt $?
+	rmdir -- "$directory" 2>/dev/null || true
+
+	(( remote_mtime > 0 )) && touch -d "@$remote_mtime" "$zip_archive"
+
+	[[ -n "$etag" ]] && printf '%s\n' "$etag" >| "$etag_file"
+}

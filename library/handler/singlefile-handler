@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# configuration start
+
+# configuration end
+
+# script task start
+
+handler_singlefile_parse_arguments() {
+	local -a arguments=()
+	while (($# > 0)); do
+		if [[ "$1" == "--singlefile-wait-until" ]]; then
+			singlefile_wait_until="${2-}"
+			shift 2 || __expression_may_fail
+		elif [[ "$1" == "--singlefile-wait-until="* ]]; then
+			singlefile_wait_until="${1#--singlefile-wait-until=}"
+			shift || __expression_may_fail
+		elif [[ "$1" == "--singlefile-"* ]]; then
+			__error "unknown singlefile argument %s" "$1"
+			local_exit_failsafe
+		else
+			arguments+=("$1")
+			shift || __expression_may_fail
+		fi
+	done
+	set -- "${arguments[@]}"
+}
+
+handler_singlefile_backup_file() {
+	local file="$1"
+	[[ -f "$file" ]] || return 0
+	local hash ext name dest backup_dir status=0
+	hash="$(sha256sum -- "$file" | awk '{print $1}')"
+	ext="${file##*.}"
+	name="$hash.$ext.zip"
+	backup_dir="$(dirname -- "$(dirname -- "$file")")/__backups"
+	mkdir --parents -- "$backup_dir"
+	dest="$backup_dir/$name"
+	if [[ -f "$dest" ]]; then
+		zip --test -- "$dest" >/dev/null 2>&1 && return 0
+	fi
+	zip --no-wild --junk-paths --test "$dest" "$file" >/dev/null || status=$?
+	abort_on_interrupt "$status"
+	__info "Wrote hash backup %s" "$dest"
+}
+
+function handler_singlefile_download() {
+	local url="$1"
+	local output_directory="$2"
+	local status=0
+
+	mkdir --parents -- "$(dirname -- "$output_directory")"
+
+	if [[ -f "$output_directory" ]] && ! $force_update_existing; then
+		__verbose "Skipping singlefile %s, file exists" "$output_directory"
+		return 0
+	fi
+
+	__info "Downloading singlefile %s" "$url"
+	handler_singlefile_backup_file "$output_directory" || return $?
+
+	local work="$temporary_files_path/$(date +%s)-singlefile"
+	mkdir --parents -- "$work"
+	"./$singlefile_library_path/single-file" --browser-cookies-file="$singlefile_cookie_file" --browser-wait-until=networkIdle --browser-wait-until-delay=2000 --browser-load-max-time=120000 --remove-hidden-elements=false --remove-unused-styles=false --remove-unused-fonts=false --remove-alternative-fonts=false --remove-alternative-medias=false --remove-alternative-images=false --group-duplicate-images=false --compress-HTML=false --compress-CSS=false --block-scripts=true --block-videos=false --block-audios=false --load-deferred-images=true "$url" "$output_directory" || status=$?
+	abort_on_interrupt "$status"
+	return "${status:-0}"
+}
