@@ -1,4 +1,5 @@
 # Example configuration
+#
 # Indentation should be tabs.
 # A missing file is an error. A missing key keeps the shell default.
 # --method-enable-* on the command line overrides enabled for that run.

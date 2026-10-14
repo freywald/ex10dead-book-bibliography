@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Sourced by bibliography-archiver. Reads --configuration-file into the
-# shell variables the handlers already use. Tabs in the YAML are expanded
-# to 4 spaces before parsing.
-
 load_configuration_file() {
 	local file="$1"
 	[[ -f "$file" ]] || { __error "configuration file not found: %s" "$file"; return 1; }

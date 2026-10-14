@@ -15,9 +15,6 @@ web_archive_directory_name="web-archive"
 temporary_files_path="${TMPDIR:-/tmp}/bibliography-work"
 wget_text_arguments=()
 wget_text_arguments_file=""
-declare -gA handler_enabled=()
-declare -gA handler_output_path=()
-declare -gA handler_leaf=()
 
 # configuration end
 
