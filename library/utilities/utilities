@@ -1,10 +1,10 @@
 #!/bin/bash
 
-source -- "./Build/libraries/ex10dead-book-bibliography/library/utilities/load-configuration" || exit 1
+source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/load-configuration" || exit 1
 
 load_handler() {
 	local file="$1"
-	source -- "./Build/libraries/ex10dead-book-bibliography/library/$file" || exit 1
+	source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/$file" || exit 1
 }
 
 handler_base_path() {

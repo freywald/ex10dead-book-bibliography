@@ -154,14 +154,14 @@ function handler_wget_download() {
 
 	mkdir --parents -- "$directory/files"
 
-	local wget_wait=2
-	local wget_limit="500k"
+	local wait_seconds="${wget_wait:-2}"
+	local limit_rate="${wget_limit_rate:-500k}"
 	if [[ "$url" == *"://web.archive.org/"* || "$url" == *"://web-static.archive.org/"* || "$url" == *"://archive.org/"* ]]; then
-		wget_wait=12
-		wget_limit="200k"
+		[[ -n "${wget_wait-}" ]] || wait_seconds=12
+		[[ -n "${wget_limit_rate-}" ]] || limit_rate="200k"
 	fi
 
-	wget --header="Accept: text/html" --wait="$wget_wait" --random-wait --limit-rate="$wget_limit" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status=$?
+	wget --header="Accept: text/html" --wait="$wait_seconds" --random-wait --limit-rate="$limit_rate" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status=$?
 	abort_on_interrupt "$status"
 
 	local -a html_files=()

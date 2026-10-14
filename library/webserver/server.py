@@ -73,7 +73,7 @@ def collect_archives(archive_root: Path):
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
-        if path.parent.name in ("backups", "__backups"):
+        if path.parent.name in ("__backups"):
             continue
         if path.name.startswith("backup-"):
             continue
@@ -151,7 +151,7 @@ class ArchiveRootHandler(NoCacheHTTPRequestHandler):
             return ""
         rows = []
         for path in sorted(dump_root.rglob("*.json")):
-            if path.parent.name in ("backups", "__backups") or path.name.startswith("backup-"):
+            if path.parent.name in ("__backups") or path.name.startswith("backup-"):
                 continue
             href = "/" + path.relative_to(self.archive_root).as_posix()
             user_id = path.parent.parent.name
@@ -222,7 +222,7 @@ class ArchiveRootHandler(NoCacheHTTPRequestHandler):
             rel = raw.lstrip("/")
             parts = rel.split("/")
             serve_file = rel.startswith(f"{self.layout.get('gallery-dl', {}).get('output_path', 'dump')}/") or rel.endswith("screenshot.png") or rel.endswith("reconstructed-twitter-thread.html") or rel.endswith(".singlefile.html") or "/wget-text/" in rel or rel.endswith(".zip")
-            if serve_file and "__backups" not in parts and "backups" not in parts:
+            if serve_file and "__backups" not in parts:
                 candidate = (self.archive_root / rel).resolve()
                 root = self.archive_root.resolve()
                 if candidate.is_file() and (root == candidate or root in candidate.parents):

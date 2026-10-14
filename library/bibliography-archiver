@@ -1,9 +1,12 @@
 #!/bin/bash
 
-source -- "Build/libraries/sourcetree-datafile-format/sourcetree-datafile-format" || exit 1
-source -- "Build/libraries/sourcetree-datafile-format/sourcetree-datafile-format.bibliography" || exit 1
-source -- "Build/libraries/build-base" || exit 1
-source -- "./Build/libraries/ex10dead-book-bibliography/library/utilities/utilities" || exit 1
+LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH="Build/libraries/ex10dead-book-bibliography/" # @todo set from outside
+LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH="Build/libraries/" # @todo set from outside
+
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/sourcetree-datafile-format/sourcetree-datafile-format" || exit 1
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/sourcetree-datafile-format/sourcetree-datafile-format.bibliography" || exit 1
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/build-base" || exit 1
+source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/utilities" || exit 1
 
 # configuration start
 
@@ -346,13 +349,12 @@ print_archive_status() {
 		base="$(basename -- "$relative_file")"
 
 		case "$relative_file" in
-			*/unpack|*/unpack/*|unpack|unpack/*) continue ;;
-			*/backups|*/backups/*|*/__backups|*/__backups/*) continue ;;
+			*/__backups|*/__backups/*) continue ;;
 			"$gallerydl_dump_directory_name"/gallery-dl.cache.sqlite3*) continue ;;
 			*.manifest|*/SUCCESSFUL_DOWNLOAD) continue ;;
 		esac
 		case "$base" in
-			unpack|unpack-*|backups|__backups|SUCCESSFUL_DOWNLOAD) continue ;;
+			__backups|SUCCESSFUL_DOWNLOAD) continue ;;
 		esac
 
 		if [[ "$relative_file" == "$gallerydl_dump_directory_name"/* ]]; then
@@ -963,27 +965,27 @@ function bibliography_archive(){
 		elif [[ "$1" == "--configuration-file="* ]]; then
 			configuration_file="${1#--configuration-file=}"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--archive-enable-gallerydl" ]]; then
+		elif [[ "$1" == "--method-enable-gallerydl" ]]; then
 			archive_run_gallerydl=true
 			load_handler "./handlers/gallerydl-handler"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--archive-enable-screenshots" ]]; then
+		elif [[ "$1" == "--method-enable-screenshots" ]]; then
 			archive_run_make_screenshot=true
 			load_handler "./handlers/screenshot-handler"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--archive-enable-singlefile" ]]; then
+		elif [[ "$1" == "--method-enable-singlefile" ]]; then
 			archive_run_singlefile=true
 			load_handler "./handlers/singlefile-handler"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--archive-enable-wget" ]]; then
+		elif [[ "$1" == "--method-enable-wget" ]]; then
 			archive_run_wget=true
 			load_handler "./handlers/wget-handler"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--archive-enable-wget-text" ]]; then
+		elif [[ "$1" == "--method-enable-wget-text" ]]; then
 			archive_run_wget_text=true
 			load_handler "./handlers/wget-text-handler"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--archive-enable-json-to-html" ]]; then
+		elif [[ "$1" == "--method-enable-json-to-html" ]]; then
 			archive_run_json_to_html=true
 			load_handler "./handlers/json-to-html-handler"
 			shift || __expression_may_fail
@@ -1002,19 +1004,6 @@ function bibliography_archive(){
 			fi
 		fi
 	done
-
-	apply_configuration_enables
-	set -- "${handler_arguments[@]}"
-	$archive_run_gallerydl && handler_gallerydl_parse_arguments
-	$archive_run_wget_text && handler_wget_text_parse_arguments
-	$archive_run_wget && handler_wget_parse_arguments
-	$archive_run_make_screenshot && handler_screenshot_parse_arguments
-	$archive_run_singlefile && handler_singlefile_parse_arguments
-	$archive_run_json_to_html && handler_json_to_html_parse_arguments
-	if (($# > 0)); then
-		__error "unknown program argument %s" "$1"
-		local_exit_failsafe
-	fi
 
 	if [[ -n "$archive_url_filter" && -z "$filter_by_id" ]]; then
 		__error "a url argument requires --archive-id /$archive_url_filter/"
@@ -1035,6 +1024,18 @@ function bibliography_archive(){
 
 	output_directory_path="$(__right_normalize_absolute_path "$output_directory/Web-Archive/$sources_directory_name/")"
 	apply_configuration_enables
+	set -- "${handler_arguments[@]}"
+	$archive_run_gallerydl && handler_gallerydl_parse_arguments
+	$archive_run_wget_text && handler_wget_text_parse_arguments
+	$archive_run_wget && handler_wget_parse_arguments
+	$archive_run_make_screenshot && handler_screenshot_parse_arguments
+	$archive_run_singlefile && handler_singlefile_parse_arguments
+	$archive_run_json_to_html && handler_json_to_html_parse_arguments
+	if (($# > 0)); then
+		__error "unknown program argument %s" "$1"
+		local_exit_failsafe
+	fi
+
 	if $archive_run_wget || $archive_run_wget_text || $archive_run_make_screenshot || $archive_run_singlefile || $archive_run_gallerydl || $archive_run_json_to_html; then
 		[[ -n "${temporary_files_path-}" ]] || { __error "temporary_files_path is required when a handler is enabled"; local_exit_failsafe; }
 		local temp_real out_real

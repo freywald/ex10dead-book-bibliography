@@ -3,7 +3,7 @@
 # configuration start
 
 screenshot_cookie_file="$gallery_dl_cookie_file"
-screenshot_page_script="Build/libraries/ex10dead-book-bibliography/library/screenshot-handler-page.js"
+screenshot_page_script="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/screenshot-handler-page.js"
 screenshot_maximum_height=16000
 screenshot_width="640"
 screenshot_viewport_height="800"

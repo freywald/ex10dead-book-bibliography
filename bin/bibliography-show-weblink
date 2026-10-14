@@ -1,18 +1,21 @@
 #!/bin/bash
 
+LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH="Build/libraries/ex10dead-book-bibliography/" # @todo set from outside
+LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH="Build/libraries/" # @todo set from outside
+
 source -- "./bin/library/base"
 __set_script_path
 __enable_error_handler
 
-source -- "Build/libraries/sourcetree-datafile-format/sourcetree-datafile-format" || exit 1
-source -- "Build/libraries/sourcetree-datafile-format/sourcetree-datafile-format.bibliography" || exit 1
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/sourcetree-datafile-format/sourcetree-datafile-format" || exit 1
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/sourcetree-datafile-format/sourcetree-datafile-format.bibliography" || exit 1
 
 # configuration start
 
 sources_directory_name="Bibliography"
 #sources_directory_name="Twitter.bibliography"
 sources_path="3. Ausfertigung/Quellen/$sources_directory_name/"
-python_webserver_library_path="3. Ausfertigung/bin/python-webserver/server.py"
+python_webserver_library_path="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/webserver/server.py"
 
 # configuration end
 
