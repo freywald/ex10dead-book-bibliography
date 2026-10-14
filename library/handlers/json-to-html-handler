@@ -39,7 +39,7 @@ handler_json_to_html_media() {
 			jpg|jpeg|png|webp|gif|mp4|webm) ;;
 			*) continue ;;
 		esac
-		source="$(realpath --relative-to="$out_dir" -- "$path" 2>/dev/null)" || source="$path"
+		source="$(realpath --relative-to="$out_dir" -- "$path" 2>"/dev/null")" || source="$path"
 		source="$(handler_json_to_html_escape "$source")"
 		case "$suffix" in
 			mp4|webm) printf '<video controls src="%s"></video>' "$source" ;;
@@ -145,7 +145,7 @@ handler_json_to_html_backup() {
 	local -a files=()
 	[[ -f "$output" ]] && files+=("$output")
 	[[ -f "$manifest" ]] && files+=("$manifest")
-	zip --no-wild --junk-paths --test "$dest" "${files[@]}" >/dev/null || return $?
+	zip --no-wild --junk-paths --test "$dest" "${files[@]}" >"/dev/null" || return $?
 	__info "Wrote pair backup %s" "$dest"
 }
 
@@ -160,7 +160,7 @@ handler_json_to_html_reconstruct() {
 		local -a local_jsons=()
 		mapfile -t local_jsons < <(get_values "$key" "local" true)
 		local quoted_flag=""
-		quoted_flag="$(get_value "$key" "is_quoted_tweet" 2>/dev/null || true)"
+		quoted_flag="$(get_value "$key" "is_quoted_tweet" 2>"/dev/null" || true)"
 		for local_json in "${local_jsons[@]}"; do
 		[[ -n "$local_json" && -f "$local_json" ]] || continue
 		[[ "$local_json" == *.json || "$local_json" == *.JSON ]] || continue

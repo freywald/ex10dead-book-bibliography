@@ -1,0 +1,72 @@
+#!/bin/bash
+
+source -- "./bin/library/base"
+__set_script_path
+__enable_error_handler
+
+# configuration start
+
+# configuration end
+
+__force_working_directory "$0" "$PROJECT_NAME"
+function local_exit_failsafe() { __exit_failsafe; exit 1; }
+
+# script task start
+
+while (($# > 0 )); do
+	if [[ "$1" == "--debug" ]]; then
+		__debug=true
+		shift ||__expression_may_fail
+	elif [[ "$1" == "--verbose" ]]; then
+		__verbose=true
+		shift ||__expression_may_fail
+	elif [[ "$1" == "--quiet" ]]; then
+		__quiet=true
+		shift ||__expression_may_fail
+	else
+		__error "unknown program argument %s" "$1"
+		local_exit_failsafe
+	fi
+done
+
+__info "[%s] format quotation…" "__$__current_script_name"
+
+echo "Entering INPUT MODE, please provide a quotation to format, use double linebreak to exit"
+
+__encode_pandoc() {
+	if (( $# == 0 )); then
+		text="$(cat)"
+	else
+		text="$1"
+	fi
+	text="${text//'@'/'\@'}"
+	echo "$text"
+}
+
+previous_line="?"
+current_buffer=""
+while true; do
+	read -r line
+
+	if [[ -n "$line" ]]; then
+		if [[ -n "$current_buffer" ]]; then
+			current_buffer+="\n$line"
+		else
+			current_buffer="$line"
+		fi
+	fi
+
+	if [[ "${previous_line}${line}" == "" ]]; then #both are empty
+		break
+	fi
+
+	previous_line="$line"
+done
+
+echo -e "\nFormatted quotation:\n"
+line="$( __trim_string_balanced "$current_buffer" " " | __encode_multiline | __encode_pandoc)"
+echo "$line"
+echo
+
+__info "[%s] done." "__$__current_script_name"
+

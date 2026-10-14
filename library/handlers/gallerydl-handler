@@ -45,7 +45,7 @@ handler_gallerydl_tweet_complete() {
 		| map(select(type == "object" and (.type == "photo" or .type == "video" or .type == "animated_gif" or .type == "image")))
 		| unique_by(.id_str // .media_key // .media_url_https // .url)
 		| length
-	' -- "$json" 2>/dev/null)" || status=$?
+	' -- "$json" 2>"/dev/null")" || status=$?
 	abort_on_interrupt "$status"
 	media_count="${media_count:-0}"
 	[[ "$media_count" =~ ^[0-9]+$ ]] || media_count=0
@@ -72,10 +72,10 @@ handler_gallerydl_backup_file() {
 	mkdir --parents -- "$backup_dir"
 	dest="$backup_dir/$name"
 	if [[ -f "$dest" ]]; then
-		zip --test -- "$dest" >/dev/null 2>&1 && return 0
+		zip --test -- "$dest" >"/dev/null" 2>&1 && return 0
 		__warn "replacing unreadable hash backup %s" "$dest"
 	fi
-	zip --no-wild --junk-paths --test "$dest" "$file" >/dev/null || status=$?
+	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
 	abort_on_interrupt "$status"
 	[[ -f "$dest" ]] || return 1
 	__info "Wrote hash backup %s" "$dest"

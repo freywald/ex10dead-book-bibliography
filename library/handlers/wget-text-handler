@@ -44,7 +44,7 @@ handler_wget_text_parse_arguments() {
 handler_wget_text_backup() {
 	local directory="$1" expected_zip="${2-}"
 	[[ -d "$directory" ]] || return 0
-	[[ -n "$(find "$directory" -mindepth 1 -print -quit 2>/dev/null)" ]] || return 0
+	[[ -n "$(find "$directory" -mindepth 1 -print -quit 2>"/dev/null")" ]] || return 0
 	local backup_dir stamp dest others=false f base
 	backup_dir="$(dirname -- "$directory")/__backups"
 	[[ "$(basename -- "$directory")" == "__backups" ]] && backup_dir="$(dirname -- "$directory")/../__backups"

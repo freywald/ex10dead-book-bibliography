@@ -14,13 +14,13 @@ handler_base_path() {
 		if [[ "$configured" == /* ]]; then
 			printf '%s\n' "$configured"
 		else
-			printf '%s\n' "$output_directory_path/$configured"
+			printf '%s\n' "$archive_path/$configured"
 		fi
 		return 0
 	fi
 	case "$name" in
-		gallery-dl) printf '%s\n' "$output_directory_path/$gallerydl_dump_directory_name" ;;
-		*) printf '%s\n' "$output_directory_path/$web_archive_directory_name" ;;
+		gallery-dl) printf '%s\n' "$archive_path/$gallerydl_dump_directory_name" ;;
+		*) printf '%s\n' "$archive_path/$web_archive_directory_name" ;;
 	esac
 }
 
@@ -100,14 +100,14 @@ archive_zip_path() {
 		__error "unknown url kind %s" "$url_kind"
 		return 1
 	fi
-	realpath --canonicalize-missing -- "$zip_archive"
+	realpath --canonicalize-existing -- "$zip_archive"
 }
 
 twitter_status_id() {
-    local url="$1"
-    if [[ "$url" =~ /status/([0-9]+) ]]; then
-        printf '%s\n' "${BASH_REMATCH[1]}"
-    fi
+	local url="$1"
+	if [[ "$url" =~ /status/([0-9]+) ]]; then
+		printf '%s\n' "${BASH_REMATCH[1]}"
+	fi
 }
 
 handler_gallerydl_warn_extra_json() {

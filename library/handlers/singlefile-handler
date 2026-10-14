@@ -37,9 +37,9 @@ handler_singlefile_backup_file() {
 	mkdir --parents -- "$backup_dir"
 	dest="$backup_dir/$name"
 	if [[ -f "$dest" ]]; then
-		zip --test -- "$dest" >/dev/null 2>&1 && return 0
+		zip --test -- "$dest" >"/dev/null" 2>&1 && return 0
 	fi
-	zip --no-wild --junk-paths --test "$dest" "$file" >/dev/null || status=$?
+	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
 	abort_on_interrupt "$status"
 	__info "Wrote hash backup %s" "$dest"
 }

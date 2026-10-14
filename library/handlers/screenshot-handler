@@ -2,7 +2,7 @@
 
 # configuration start
 
-screenshot_cookie_file="$gallery_dl_cookie_file"
+screenshot_cookie_file="$screenshot_cookie_file"
 screenshot_page_script="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/screenshot-handler-page.js"
 screenshot_maximum_height=16000
 screenshot_width="640"
@@ -70,9 +70,9 @@ handler_screenshot_backup_file() {
 	mkdir --parents -- "$backup_dir"
 	dest="$backup_dir/$name"
 	if [[ -f "$dest" ]]; then
-		zip --test -- "$dest" >/dev/null 2>&1 && return 0
+		zip --test -- "$dest" >"/dev/null" 2>&1 && return 0
 	fi
-	zip --no-wild --junk-paths --test "$dest" "$file" >/dev/null || status=$?
+	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
 	abort_on_interrupt "$status"
 	__info "Wrote hash backup %s" "$dest"
 }

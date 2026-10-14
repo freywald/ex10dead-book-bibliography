@@ -3,38 +3,77 @@
 load_configuration_file() {
 	local file="$1"
 	[[ -f "$file" ]] || { __error "configuration file not found: %s" "$file"; return 1; }
-	command -v yq >/dev/null || { __error "yq is required to read %s" "$file"; return 1; }
+	command -v yq >"/dev/null" || { __error "yq is required to read %s" "$file"; return 1; }
+
 	local json
-	json="$(expand -t 4 -- "$file" | yq --output-format=json '.' )" || return 1
+	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || return 1
+
+	value="$(jq --raw-output '.bibliography_name // empty' <<<"$json")"
+	[[ -n "$value" && -z "${bibliography_name-}" ]] && bibliography_name="$value"
+
+	value="$(jq --raw-output '.archive_path // empty' <<<"$json")"
+	if [[ -n "$value" && -z "${archive_path-}" ]]; then
+		archive_path="$value/$bibliography_name"
+	fi
+
+	value="$(jq --raw-output '.bibliography_sources_path // empty' <<<"$json")"
+	if [[ -n "$value" && -z "${bibliography_sources_path-}" ]]; then
+		bibliography_sources_path="$value/$bibliography_name"
+	fi
 
 	temporary_files_path="$(jq --raw-output '.temporary_files_path // empty' <<<"$json")"
-	gallery_dl_cookie_file="$(jq --raw-output '.gallery_dl_cookie_file // empty' <<<"$json")"
-	singlefile_cookie_file="$(jq --raw-output '.singlefile_cookie_file // empty' <<<"$json")"
-	singlefile_library_path="$(jq --raw-output '.singlefile_library_path // empty' <<<"$json")"
-	screenshot_cookie_file="$(jq --raw-output '.screenshot_cookie_file // empty' <<<"$json")"
-	screenshot_page_script="$(jq --raw-output '.screenshot_page_script // empty' <<<"$json")"
-	screenshot_maximum_height="$(jq --raw-output '.screenshot_maximum_height // empty' <<<"$json")"
-	screenshot_width="$(jq --raw-output '.screenshot_width // empty' <<<"$json")"
-	screenshot_viewport_height="$(jq --raw-output '.screenshot_viewport_height // empty' <<<"$json")"
-	screenshot_browser_device_pixel_ratio="$(jq --raw-output '.screenshot_browser_device_pixel_ratio // empty' <<<"$json")"
-	screenshot_zoom="$(jq --raw-output '.screenshot_zoom // empty' <<<"$json")"
-	screenshot_reply_count="$(jq --raw-output '.screenshot_reply_count // empty' <<<"$json")"
-	wget_text_arguments_file="$(jq --raw-output '.wget_text_arguments_file // empty' <<<"$json")"
+
+	local value
+	value="$(jq --raw-output '.handlers.screenshot.page_script // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_page_script="$value"
+	value="$(jq --raw-output '.handlers.screenshot.maximum_height // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_maximum_height="$value"
+	value="$(jq --raw-output '.handlers.screenshot.width // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_width="$value"
+	value="$(jq --raw-output '.handlers.screenshot.viewport_height // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_viewport_height="$value"
+	value="$(jq --raw-output '.handlers.screenshot.browser_device_pixel_ratio // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_browser_device_pixel_ratio="$value"
+	value="$(jq --raw-output '.handlers.screenshot.zoom // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_zoom="$value"
+	value="$(jq --raw-output '.handlers.screenshot.reply_count // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_reply_count="$value"
+
+	value="$(jq --raw-output '.handlers.wget.wait // empty' <<<"$json")"
+	[[ -n "$value" ]] && wget_wait="$value"
+	value="$(jq --raw-output '.handlers.wget.limit_rate // empty' <<<"$json")"
+	[[ -n "$value" ]] && wget_limit_rate="$value"
+
+	value="$(jq --raw-output '.handlers["wget-text"].arguments_file // empty' <<<"$json")"
+	[[ -n "$value" ]] && wget_text_arguments_file="$value"
 	wget_text_arguments=()
 	while IFS= read -r line; do
 		[[ -n "$line" ]] && wget_text_arguments+=("$line")
-	done < <(jq --raw-output '.wget_text_arguments[]? // empty' <<<"$json")
+	done < <(jq --raw-output '.handlers["wget-text"].arguments[]? // empty' <<<"$json")
+
+	value="$(jq --raw-output '.handlers.singlefile.wait_until // empty' <<<"$json")"
+	[[ -n "$value" ]] && singlefile_wait_until="$value"
+
 	wget_text_output_as_zip="$(jq --raw-output '.handlers["wget-text"].output_as_zip // true' <<<"$json")"
 
-	declare -gA handler_enabled=()
-	declare -gA handler_output_path=()
-	declare -gA handler_leaf=()
 	local name
 	for name in gallery-dl wget wget-text screenshot singlefile json-to-html; do
 		handler_enabled["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled // false' <<<"$json")"
 		handler_output_path["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].output_path // empty' <<<"$json")"
 		handler_leaf["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // $n' <<<"$json")"
 	done
+
+	value="$(jq --raw-output '.handlers["gallery-dl"].cookie_file // empty' <<<"$json")"
+	[[ -n "$value" ]] && gallery_dl_cookie_file="$value"
+	value="$(jq --raw-output '.handlers.wget.cookie_file // empty' <<<"$json")"
+	[[ -n "$value" ]] && wget_cookie_file="$value"
+	value="$(jq --raw-output '.handlers["wget-text"].cookie_file // empty' <<<"$json")"
+	[[ -n "$value" ]] && wget_text_cookie_file="$value"
+	value="$(jq --raw-output '.handlers.screenshot.cookie_file // empty' <<<"$json")"
+	[[ -n "$value" ]] && screenshot_cookie_file="$value"
+	value="$(jq --raw-output '.handlers.singlefile.cookie_file // empty' <<<"$json")"
+	[[ -n "$value" ]] && singlefile_cookie_file="$value"
+
 	handler_leaf["gallery-dl"]="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json")"
 }
 
@@ -48,24 +87,27 @@ verify_handler_layout() {
 			return 1
 		fi
 	done
+
 	if [[ "${handler_enabled[gallery-dl]}" == "true" ]]; then
-		gallery_real="$(realpath --canonicalize-missing -- "${handler_output_path[gallery-dl]}")"
+		gallery_real="$(realpath --canonicalize-existing -- "${handler_output_path[gallery-dl]}")"
 		for name in wget wget-text screenshot singlefile json-to-html; do
 			[[ "${handler_enabled[$name]}" == "true" ]] || continue
-			other_real="$(realpath --canonicalize-missing -- "${handler_output_path[$name]}")"
+			other_real="$(realpath --canonicalize-existing -- "${handler_output_path[$name]}")"
 			if [[ "$gallery_real" == "$other_real" ]]; then
 				__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
 				return 1
 			fi
 		done
 	fi
+
 	if [[ -z "${temporary_files_path-}" ]]; then
 		__error "temporary_files_path is required when a handler is enabled"
 		return 1
 	fi
+
 	local temp_real out_real
-	temp_real="$(realpath --canonicalize-missing -- "$temporary_files_path")"
-	out_real="$(realpath --canonicalize-missing -- "$output_directory_path")"
+	temp_real="$(realpath --canonicalize-existing -- "$temporary_files_path")"
+	out_real="$(realpath --canonicalize-existing -- "$archive_path")"
 	if [[ "$temp_real" == "$out_real" || "$temp_real" == "$out_real"/* ]]; then
 		__error "temporary_files_path %s is inside output path %s" "$temp_real" "$out_real"
 		return 1
