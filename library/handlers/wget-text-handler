@@ -44,7 +44,11 @@ handler_wget_text_parse_arguments() {
 handler_wget_text_backup() {
 	local directory="$1" expected_zip="${2-}"
 	[[ -d "$directory" ]] || return 0
-	[[ -n "$(find "$directory" -mindepth 1 -print -quit 2>"/dev/null")" ]] || return 0
+
+	local found=""
+	found="$(find "$directory" -mindepth 1 -print -quit)" || return $?
+	[[ -n "$found" ]] || return 0
+
 	local backup_dir stamp dest others=false f base
 	backup_dir="$(dirname -- "$directory")/__backups"
 	[[ "$(basename -- "$directory")" == "__backups" ]] && backup_dir="$(dirname -- "$directory")/../__backups"
@@ -78,7 +82,7 @@ handler_wget_text_backup() {
 		dest="$backup_dir/wget-text-${stamp}_$i.zip"
 		i=$((i + 1))
 	done
-	dest="$(realpath -- "$dest")"
+	dest="$(realpath --canonicalize-missing -- "$dest")" || return $?
 	__info "Writing backup zip %s" "$dest"
 	(cd -- "$directory" && zip --no-wild --test --move "$dest" -- ".") || return $?
 }

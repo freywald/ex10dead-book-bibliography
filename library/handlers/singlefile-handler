@@ -30,7 +30,10 @@ handler_singlefile_backup_file() {
 	local file="$1"
 	[[ -f "$file" ]] || return 0
 	local hash ext name dest backup_dir status=0
-	hash="$(sha256sum -- "$file" | awk '{print $1}')"
+
+	hash="$(sha256sum -- "$file" | awk '{print $1}')" || return $?
+    [[ -n "$hash" ]] || return 1
+
 	ext="${file##*.}"
 	name="$hash.$ext.zip"
 	backup_dir="$(dirname -- "$(dirname -- "$file")")/__backups"

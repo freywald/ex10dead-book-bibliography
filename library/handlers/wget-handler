@@ -37,7 +37,7 @@ handler_wget_parse_arguments() {
 
 handler_wget_is_html_document() {
 	local mime
-	mime="$(file -b --mime-type -- "$1" 2>"/dev/null")" || abort_on_interrupt $?
+	mime="$(file -b --mime-type -- "$1")" || abort_on_interrupt $?
 	[[ "$mime" == text/html* || "$mime" == application/xhtml+xml* ]]
 }
 
@@ -64,7 +64,7 @@ function handler_wget_download() {
 	local headers=""
 	local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 	[[ -n "${gallery_dl_cookie_file-}" && -f "$wget_cookie_file" ]] && curl_args+=(--cookie "$wget_cookie_file")
-	headers="$(curl "${curl_args[@]}" -- "$url" 2>"/dev/null")" || abort_on_interrupt $?
+	headers="$(curl "${curl_args[@]}" -- "$url")" || abort_on_interrupt $?
 	headers="${headers-}"
 	local http_status="${headers: -3}"
 	http_status="${http_status:-000}"
@@ -320,18 +320,20 @@ function handler_wget_download() {
 	if $backup_existing_archive && [[ -f "$zip_archive" ]]; then
 		local backup_dir backup_name
 		backup_dir="$(dirname -- "$(dirname -- "$zip_archive")")/__backups"
-		mkdir --parents -- "$backup_dir"
+		mkdir --parents -- "$backup_dir" || return $?
 		backup_name="$(basename -- "$zip_archive" ".zip").$(date -d "@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
-		mv -- "$zip_archive" "$backup_dir/$backup_name"
+		mv -- "$zip_archive" "$backup_dir/$backup_name" || abort_on_interrupt $?
 		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag"
 	fi
 
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
-	zip_archive="$(realpath -- "$zip_archive")"
+	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")" || abort_on_interrupt $?
 	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".") || abort_on_interrupt $?
 	rmdir -- "$directory" 2>"/dev/null" || true
 
-	(( remote_mtime > 0 )) && touch -d "@$remote_mtime" "$zip_archive"
+	if (( remote_mtime > 0 )); then
+		touch -d "@$remote_mtime" "$zip_archive" || abort_on_interrupt $?
+	fi
 
 	[[ -n "$etag" ]] && printf '%s\n' "$etag" >| "$etag_file"
 }

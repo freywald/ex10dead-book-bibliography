@@ -24,7 +24,6 @@ declare -gA handler_leaf=()
 # script task start
 
 apply_configuration_enables() {
-
 	verify_handler_layout || local_exit_failsafe
 
 	if [[ "${handler_enabled[gallery-dl]}" == "true" ]] && ! $archive_run_gallerydl; then
@@ -177,7 +176,7 @@ print_archive_status() {
 		if $probe && $archive_run_wget; then
 			local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 			[[ -n "${gallery_dl_cookie_file-}" && -f "$gallery_dl_cookie_file" ]] && curl_args+=(--cookie "$gallery_dl_cookie_file")
-			headers="$(curl "${curl_args[@]}" -- "$queued_url" 2>"/dev/null")" || abort_on_interrupt $?
+			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || abort_on_interrupt $?
 			headers="${headers-}"
 			http_status="${headers: -3}"
 			http_status="${http_status:-000}"
@@ -187,15 +186,16 @@ print_archive_status() {
 			elif [[ "$http_status" != 2* ]]; then
 				remote_note="http ${http_status}"
 			else
-				last_modified="$(printf '%s\n' "$headers" | grep -i '^last-modified:' | head -1 | cut -d: -f2-)" || abort_on_interrupt $?
-				etag="$(printf '%s\n' "$headers" | grep -i '^etag:' | head -1 | cut -d: -f2- | tr -d '\" ')" || abort_on_interrupt $?
+				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || true; } | head -1 | cut -d: -f2-)"
+				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 				remote_mtime=0
-				[[ -n "$last_modified" ]] && remote_mtime="$(date -d "$last_modified" "+%s" 2>"/dev/null")" || abort_on_interrupt $?
-				remote_mtime="${remote_mtime:-0}"
+				if [[ -n "$last_modified" ]]; then
+					remote_mtime="$(date -d "$last_modified" "+%s")" || { __error "bad Last-Modified %s" "$last_modified"; abort_on_interrupt $?; }
+				fi
 				local_mtime=0
-				[[ -f "$zip_archive" ]] && local_mtime="$(stat -c "%Y" -- "$zip_archive" 2>"/dev/null")" || abort_on_interrupt $?
-				local_mtime="${local_mtime:-0}"
-				remote_note="$(archive_status_etag_note "$zip_archive" "$etag" "$zip_ok" "$remote_mtime" "$local_mtime")"
+				if [[ -f "$zip_archive" ]]; then
+					local_mtime="$(stat -c "%Y" -- "$zip_archive")" || { __error "cannot stat %s" "$zip_archive"; abort_on_interrupt $?; }
+				fi
 			fi
 		fi
 
@@ -1064,10 +1064,13 @@ function bibliography_archive(){
 	fi
 
 	if $archive_run_wget || $archive_run_wget_text || $archive_run_make_screenshot || $archive_run_singlefile || $archive_run_gallerydl || $archive_run_json_to_html; then
-		[[ -n "${temporary_files_path-}" ]] || { __error "temporary_files_path is required when a handler is enabled"; local_exit_failsafe; }
-		local temp_real out_real
-		temp_real="$(realpath --canonicalize-existing -- "$temporary_files_path")"
-		out_real="$(realpath --canonicalize-existing -- "$archive_path")"
+		[[ -n "$temporary_files_path" ]] || { __error "temporary_files_path is empty"; local_exit_failsafe; }
+        [[ -n "$archive_path" ]] || { __error "archive_path is empty"; local_exit_failsafe; }
+        local temp_real
+        temp_real="$(realpath --canonicalize-missing -- "$temporary_files_path")" || { __error "cannot resolve temporary_files_path %s" "$temporary_files_path"; local_exit_failsafe; }
+        local out_real
+        out_real="$(realpath --canonicalize-missing -- "$archive_path")" || { __error "cannot resolve archive_path %s" "$archive_path"; local_exit_failsafe; }
+
 		if [[ "$temp_real" == "$out_real" || "$temp_real" == "$out_real"/* ]]; then
 			__error "temporary_files_path %s is inside output path %s" "$temp_real" "$out_real"
 			local_exit_failsafe

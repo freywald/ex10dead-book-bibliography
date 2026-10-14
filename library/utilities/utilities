@@ -100,7 +100,7 @@ archive_zip_path() {
 		__error "unknown url kind %s" "$url_kind"
 		return 1
 	fi
-	realpath --canonicalize-existing -- "$zip_archive"
+	realpath --canonicalize-missing -- "$zip_archive" || return $?
 }
 
 twitter_status_id() {

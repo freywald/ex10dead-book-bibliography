@@ -39,7 +39,7 @@ handler_json_to_html_media() {
 			jpg|jpeg|png|webp|gif|mp4|webm) ;;
 			*) continue ;;
 		esac
-		source="$(realpath --relative-to="$out_dir" -- "$path" 2>"/dev/null")" || source="$path"
+		source="$(realpath --relative-to="$out_dir" -- "$path")" || { __warn "relative path failed for %s" "$path"; source="$path"; }
 		source="$(handler_json_to_html_escape "$source")"
 		case "$suffix" in
 			mp4|webm) printf '<video controls src="%s"></video>' "$source" ;;
@@ -131,7 +131,7 @@ handler_json_to_html_backup() {
 	backup_dir="$(dirname -- "$output")/../__backups"
 	mkdir --parents -- "$backup_dir"
 	if [[ -f "$output" ]]; then
-		mtime="$(date -r "$output" +%d-%m-%Y-%H-%M-%S)"
+		mtime="$(date -r "$output" +%d-%m-%Y-%H-%M-%S)" || return $?
 	else
 		mtime="$(date +%d-%m-%Y-%H-%M-%S)"
 	fi
@@ -141,7 +141,7 @@ handler_json_to_html_backup() {
 		dest="$backup_dir/json-to-html-${mtime}_$i.zip"
 		i=$((i + 1))
 	done
-	dest="$(realpath -- "$dest")"
+	dest="$(realpath --canonicalize-missing -- "$dest")" || return $?
 	local -a files=()
 	[[ -f "$output" ]] && files+=("$output")
 	[[ -f "$manifest" ]] && files+=("$manifest")
