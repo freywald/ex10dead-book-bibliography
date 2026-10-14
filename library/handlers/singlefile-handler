@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# configuration start
+
+# configuration end
+
+# script task start
+
+function handler_singlefile_download() {
+	local url="$1"
+	local output_directory="$2"
+	local status=0
+
+	mkdir --parents -- "$(dirname -- "$output_directory")"
+
+	if [[ -f "$output_directory" ]] && ! $force_update_existing; then
+		__verbose "Skipping singlefile %s, file exists" "$output_directory"
+		return 0
+	fi
+
+	__info "Downloading singlefile %s" "$url"
+
+	if $force_update_existing && [[ -f "$output_directory" ]]; then
+		local backup_dir
+		backup_dir="$(dirname -- "$output_directory")/__backups"
+		mkdir --parents -- "$backup_dir"
+		mv -- "$output_directory" "$backup_dir/backup-$(basename -- "$output_directory" ".html").$(date "+%d.%m.%Y [%H∶%M∶%S]").html"
+	fi
+
+	"./$singlefile_library_path/single-file" --browser-cookies-file="$singlefile_cookie_file" --browser-wait-until=networkIdle --browser-wait-until-delay=2000 --browser-load-max-time=120000 --remove-hidden-elements=false --remove-unused-styles=false --remove-unused-fonts=false --remove-alternative-fonts=false --remove-alternative-medias=false --remove-alternative-images=false --group-duplicate-images=false --compress-HTML=false --compress-CSS=false --block-scripts=true --block-videos=false --block-audios=false --load-deferred-images=true "$url" "$output_directory" || status=$?
+	abort_on_interrupt "$status"
+	return "${status:-0}"
+}

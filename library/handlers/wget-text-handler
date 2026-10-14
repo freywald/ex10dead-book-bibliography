@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# configuration start
+
+# configuration end
+
+# script task start
+
+handler_wget_text_backup() {
+	local directory="$1"
+	[[ -d "$directory" ]] || return 0
+	[[ -n "$(find "$directory" -mindepth 1 -print -quit 2>/dev/null)" ]] || return 0
+	local backup_dir stamp source dest name
+	backup_dir="$(dirname -- "$directory")/__backups"
+	mkdir --parents -- "$backup_dir"
+	stamp=""
+	local candidate
+	for candidate in index.html index.htm index.xhtml index.shtml index.php default.html default.htm default.asp home.html home.htm welcome.html; do
+		[[ -f "$directory/$candidate" ]] || continue
+		stamp="$(date -r "$directory/$candidate" +%d-%m-%Y-%H-%M-%S)"
+		break
+	done
+	if [[ -z "$stamp" ]]; then
+		source="$(find "$directory" -type f -print -quit)"
+		[[ -n "$source" ]] && stamp="$(date -r "$source" +%d-%m-%Y-%H-%M-%S)"
+	fi
+	[[ -n "$stamp" ]] || stamp="$(date +%d-%m-%Y-%H-%M-%S)"
+	dest="$backup_dir/html-$stamp.zip"
+	local i=1
+	while [[ -e "$dest" ]]; do
+		dest="$backup_dir/html-${stamp}_${i}.zip"
+		i=$((i + 1))
+	done
+	__info "Writing backup zip %s" "$dest"
+	dest="$(realpath -- "$dest")"
+	(cd -- "$directory" && zip --no-wild -T -rm "$dest" -- ".") || return $?
+	rmdir -- "$directory" 2>/dev/null || true
+}
+
+handler_wget_text_download() {
+	local url="$1"
+	local domain="$2"
+	local output_directory="$3"
+	local status=0
+	mkdir --parents -- "$(dirname -- "$output_directory")"
+	if [[ -d "$output_directory" && -f "$output_directory/SUCCESSFUL_DOWNLOAD" ]] && ! $force_update_existing; then
+		__verbose "Skipping wget-text %s, directory exists" "$url"
+		return 0
+	fi
+	handler_wget_text_backup "$output_directory" || return $?
+	mkdir --parents -- "$output_directory"
+	local -a args=()
+	local line token
+	if [[ -n "$wget_text_arguments_file" ]]; then
+		while IFS= read -r line || [[ -n "$line" ]]; do
+			line="${line#"${line%%[![:space:]]*}"}"
+			[[ -z "$line" || "$line" == \#* ]] && continue
+			args+=("$line")
+		done < "$wget_text_arguments_file"
+	fi
+	args+=("${wget_text_arguments[@]}")
+	trap 'handler_wget_text_backup "$output_directory"; exit 130' INT
+	trap 'handler_wget_text_backup "$output_directory"; exit 143' TERM
+	wget "${args[@]}" --directory-prefix="$output_directory" --domain="$domain" -- "$url" || status=$?
+	#wget --follow-tags="a" --reject '*.js,*.css,*.ico,*.txt,*.gif,*.jpg,*.jpeg,*.png,*.mp3,*.pdf,*.tgz,*.flv,*.avi,*.mpeg,*.iso' --ignore-tags="img,link,script" --header="Accept: text/html" --no-clobber --convert-links --random-wait --recursive --adjust-extension --execute "robots=off" --user-agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.102 Safari/537.36" --accept "html" --directory-prefix="files" --wait "10" --mirror --no-parent --no-if-modified-since --domain="$domain" -- "$url"
+
+	trap - INT TERM
+	if (( status == 130 || status == 143 )); then
+		handler_wget_text_backup "$output_directory"
+		exit "$status"
+	fi
+	if (( status != 0 )); then
+		handler_wget_text_backup "$output_directory" || return $?
+		return "$status"
+	fi
+	: >| "$output_directory/SUCCESSFUL_DOWNLOAD"
+	return 0
+}
+
