@@ -133,10 +133,10 @@ pick_and_serve_zip() {
 
 if ! $show_extras; then
 	if [[ ! -f "$entry_zip" ]]; then
-		__error "no entry zip for id %s at %s" "$given_url_identifier" "$entry_zip"
 		if (( ${#extra_zips[@]} > 0 )); then
 			__info "extras exist; run: %s %s --extras" "$__current_script_name" "$given_url_identifier"
 		fi
+		__error "no entry zip for id %s at %s" "$given_url_identifier" "$entry_zip"
 		local_exit_failsafe
 	fi
 	pick_and_serve_zip "$entry_zip" "$found_url"

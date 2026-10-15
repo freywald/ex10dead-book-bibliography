@@ -32,7 +32,7 @@ abort_on_interrupt() {
 }
 
 apply_configuration_enables() {
-	verify_handler_layout || local_exit_failsafe
+	verify_handler_layout
 
 	if [[ "${handler_enabled[gallery-dl]}" == "true" ]] && ! $archive_run_gallerydl; then
 		archive_run_gallerydl=true
@@ -1124,14 +1124,13 @@ function bibliography_archive(){
 
 	local defaults_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
 	[[ ! -f "$defaults_file" ]] && { __error "default configuration file not found: %s" "$defaults_file"; local_exit_failsafe; }
-	load_configuration_file "$defaults_file" || local_exit_failsafe
-echo "true";exit
+	load_configuration_file "$defaults_file"
 	local configuration_file
 	for configuration_file in "${configuration_files[@]}"; do
 		[[ ! -f "$configuration_file" ]] && { __error "configuration file %s does not exist" "$configuration_file"; local_exit_failsafe; }
 		__info "loading file %s" "$configuration_file"
 		echo "temporary_files_path=$temporary_files_path"
-		load_configuration_file "$configuration_file" || local_exit_failsafe
+		load_configuration_file "$configuration_file"
 		echo "temporary_files_path=$temporary_files_path"
 	done
 
