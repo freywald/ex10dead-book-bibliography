@@ -120,7 +120,9 @@ print_archive_status() {
 		if [[ "$zip_display" == "$archive_path"* ]]; then
 			zip_display="${zip_display#"$archive_path"}"
 		fi
-		local screenshot_file="$(handler_leaf_dir "screenshot" "$id")/screenshot.png"
+		local screenshot_file
+		screenshot_file="$(handler_leaf_dir "screenshot" "$id")/screenshot.png"
+
 		local screenshot_display="$screenshot_file"
 		if [[ "$screenshot_file" == "$__current_directory"* ]]; then
 			screenshot_display="${screenshot_file#"$__current_directory"}"
@@ -129,7 +131,9 @@ print_archive_status() {
 			screenshot_display="${screenshot_display#"$archive_path"}"
 		fi
 		screenshot_display="${screenshot_display#/}"
-		local singlefile_path="$(handler_leaf_dir "singlefile" "$id")/$(basename -- "$zip_archive" .zip).singlefile.html"
+		local singlefile_path
+		singlefile_path="$(handler_leaf_dir "singlefile" "$id")/$(basename -- "$zip_archive" .zip).singlefile.html"
+
 		local singlefile_display="${singlefile_path#"$archive_path"}"
 		singlefile_display="${singlefile_display#/}"
 		zip_display="${zip_display#/}"
@@ -232,27 +236,22 @@ print_archive_status() {
 			fi
 		fi
 
-		if $archive_run_make_screenshot; then
-			expected_archive_paths["$screenshot_display"]=1
-			expected_archive_paths["$web_archive_directory_name/${queued_ids[$queued_url]}"]=1
+		expected_archive_stems["$(basename -- "$id")"]=1
+		if $archive_run_make_screenshot || $archive_run_wget || $archive_run_singlefile || $archive_run_wget_text || $archive_run_json_to_html; then
+			expected_archive_paths["$(archive_relative "$(handler_id_dir wget "$id")")"]=1
 		fi
 		if $archive_run_gallerydl; then
-			[[ -n "$gallerydl_display" ]] && expected_archive_paths["$gallerydl_display"]=1
-			expected_archive_paths["$gallerydl_dump_directory_name/${queued_ids[$queued_url]}"]=1
+			expected_archive_paths["$(archive_relative "$(handler_id_dir gallery-dl "$id")")"]=1
 		fi
+
+		leaf="${handler_leaf_name[wget]-wget}"
+		stem_name="$(basename -- "$id")"
+		expected_archive_stems["$stem_name"]=1
+		expected_archive_paths["$leaf/$stem_name.zip"]=1
+		expected_archive_paths["$leaf/$stem_name.zip.etag"]=1
 		if $archive_run_singlefile; then
-			expected_archive_paths["$singlefile_display"]=1
-		fi
-		if $archive_run_wget; then
-			expected_archive_paths["$zip_display"]=1
-			expected_archive_paths["${zip_display}.etag"]=1
-		fi
-		if $archive_run_wget_text; then
-			expected_archive_paths["$wget_text_display"]=1
-		fi
-		if $archive_run_json_to_html; then
-			expected_archive_paths["$reconstruct_display"]=1
-			expected_archive_paths["${reconstruct_display%.html}.manifest"]=1
+			sf_leaf="${handler_leaf_name[singlefile]-singlefile}"
+			expected_archive_paths["$sf_leaf/$stem_name.singlefile.html"]=1
 		fi
 
 		status_wanted "$zip_ok" "$singlefile_ok" "$screenshot_ok" "$gallerydl_ok" "$remote_note" "$wget_text_ok" "$reconstruct_ok" || continue
@@ -357,23 +356,38 @@ print_archive_status() {
 	local base parent under_expected scanned=0
 	local -a orphans=()
 	local -a scan_roots=()
+
 	[[ -d "$web_archive_path" ]] && scan_roots+=("$web_archive_path")
 	[[ -d "$gallerydl_dump_path" ]] && scan_roots+=("$gallerydl_dump_path")
 	((${#scan_roots[@]} == 0)) && return 0
+
+	local dump_name web_name
+	dump_name="$(archive_relative "$gallerydl_dump_path")"
+	web_name="$(archive_relative "$web_archive_path")"
+
 	__info "scanning archive trees for orphans"
 	while IFS= read -r -d '' file; do
 		scanned=$((scanned + 1))
 		if (( scanned % 2000 == 0 )); then
 			__info "orphan scan %s paths" "$scanned"
 		fi
-		local relative_file="$file"
-		if [[ "$relative_file" == "$archive_path"* ]]; then
-			relative_file="${relative_file#"$archive_path"}"
-			relative_file="${relative_file#/}"
+
+		local relative_file
+		relative_file="$(archive_relative "$file")"
+
+		local base
+		base="$(basename -- "$relative_file")"
+
+		local stem="$base"
+		stem="${stem%.etag}"
+		stem="${stem%.zip}"
+		stem="${stem%.singlefile.html}"
+		if [[ -n "${expected_archive_stems[$stem]+set}" ]]; then
+			continue
 		fi
 
 		case "$relative_file" in
-			""|"$gallerydl_dump_directory_name"|"$web_archive_directory_name") continue ;;
+			""|"$dump_name"|"$web_name") continue ;;
 		esac
 
 		if [[ -n "${expected_archive_paths["$relative_file"]+set}" ]]; then
@@ -392,18 +406,17 @@ print_archive_status() {
 			continue
 		fi
 
-		base="$(basename -- "$relative_file")"
-
 		case "$relative_file" in
 			*/__backups|*/__backups/*) continue ;;
-			"$gallerydl_dump_directory_name"/gallery-dl.cache.sqlite3*) continue ;;
+			"$dump_name"/gallery-dl.cache.sqlite3*) continue ;;
 			*.manifest|*/SUCCESSFUL_DOWNLOAD) continue ;;
 		esac
+
 		case "$base" in
 			__backups|SUCCESSFUL_DOWNLOAD) continue ;;
 		esac
 
-		if [[ "$relative_file" == "$gallerydl_dump_directory_name"/* ]]; then
+		if [[ "$relative_file" == "$dump_name"/* ]]; then
 			local dump_dir="$file"
 			[[ -f "$file" ]] && dump_dir="$(dirname -- "$file")"
 			local dump_id
@@ -1147,6 +1160,7 @@ function bibliography_archive(){
 
 	declare -A wget_zip_paths_this_session=()
 	declare -A expected_archive_paths=()
+	declare -A expected_archive_stems=()
 
 	local default_configuration_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
 	[[ ! -f "$default_configuration_file" ]] && { __error "default configuration file not found: %s" "$default_configuration_file"; local_exit_failsafe; }

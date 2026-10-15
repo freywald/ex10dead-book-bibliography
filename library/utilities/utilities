@@ -7,6 +7,19 @@ load_handler() {
 	source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/$file" || exit 1
 }
 
+archive_relative() {
+	local path="$1"
+	path="${path#"$__current_directory"}"
+	path="${path#"$archive_path"}"
+	path="${path#/}"
+	path="${path#./}"
+	path="${path%/}"
+	while [[ "$path" == *//* ]]; do
+		path="${path//\/\//\/}"
+	done
+	printf '%s\n' "$path"
+}
+
 handler_base_path() {
 	local name="$1"
 	local configured="${handler_output_path[$name]-}"
