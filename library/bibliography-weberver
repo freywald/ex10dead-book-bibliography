@@ -86,7 +86,7 @@ verify_tree || __failure "Tree verification failed!"
 
 if $walk_archive; then
 	__heading "Starting webserver for the whole archive…"
-	python3 "$python_webserver_library_path" --archive-root "$archive_path" --port "8080" --host "127.0.0.1"
+	python3 "$python_webserver_library_path" --archive-root "$archive_path" --port "8080" --host "127.0.0.1" "${configuration_arguments[@]}"
 	exit 0
 fi
 
@@ -110,6 +110,11 @@ work_dir="$archive_path/$given_url_identifier"
 
 extra_zips=( "$work_dir"/*.zip )
 
+declare -a configuration_arguments=()
+for configuration_file in "${configuration_files[@]}"; do
+	configuration_arguments+=(--configuration-file "$configuration_file")
+done
+
 pick_and_serve_zip() {
 	local serve="$1"
 	local label="${2-}"
@@ -123,13 +128,6 @@ pick_and_serve_zip() {
 	__info "Please open any web browser of your liking and navigate to address %s" "http://127.0.0.1:8080"
 	echo
 
-	local -a configuration_arguments=()
-	local configuration_file
-	for configuration_file in "${configuration_files[@]}"; do
-		configuration_arguments+=(--configuration-file "$configuration_file")
-	done
-
-	python3 "$python_webserver_library_path" --archive-root "$archive_path" --port "8080" --host "127.0.0.1" "${configuration_arguments[@]}"
 	python3 "$python_webserver_library_path" --directory "$serve" --port "8080" --host "127.0.0.1" "${configuration_arguments[@]}"
 }
 
