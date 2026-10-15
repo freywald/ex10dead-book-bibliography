@@ -430,6 +430,13 @@ print_archive_status() {
 		orphans+=("$relative_file")
 	done < <(find "${scan_roots[@]}" \( -type f -o -type d \) -print0)
 	__info "orphan scan finished, %s paths, %s orphans" "$scanned" "${#orphans[@]}"
+
+	if ((${#orphans[@]} > 0)); then
+		__heading "Not in bibliography"
+		for orphan in "${orphans[@]}"; do
+			__info "orphan archive path %s" "${orphan#"$__current_directory"}"
+		done
+	fi
 }
 
 function manage_archive_for_url() {
