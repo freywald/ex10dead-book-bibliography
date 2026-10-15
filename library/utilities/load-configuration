@@ -6,93 +6,123 @@ old_bibliography_sources_path=""
 load_configuration_file() {
 	local file="$1"
 
-	[[ ! -f "$file" ]] && { __error "configuration file not found: %s" "$file"; return 1; }
-	! command -v yq >"/dev/null" && { __error "yq is required to read %s" "$file"; return 1; }
+	if [[ ! -f "$file" ]]; then
+		__error "configuration file not found: %s" "$file"
+		return 1
+	fi
+	if ! command -v yq >"/dev/null"; then
+		__error "yq is required to read %s" "$file"
+		return 1
+	fi
 
 	local json
 	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || return 1
 
 	local value
-	value="$(jq --raw-output '.bibliography_name // empty' <<<"$json" )" || value=""
-	if [[ -n "$value" ]]; then
+	if jq --exit-status 'has("bibliography_name")' <<<"$json" >"/dev/null"; then
+		value="$(jq --raw-output '.bibliography_name // ""' <<<"$json")"
 		bibliography_name="$value"
 	fi
 
-	value="$(jq --raw-output '.archive_path // empty' <<<"$json" )" || value=""
-	if [[ -n "$value" ]]; then
+	if jq --exit-status 'has("archive_path")' <<<"$json" >"/dev/null"; then
+		value="$(jq --raw-output '.archive_path // ""' <<<"$json")"
 		archive_path="$value/$bibliography_name"
 		old_archive_path="$value"
 	else
 		archive_path="$old_archive_path/$bibliography_name"
 	fi
 
-	value="$(jq --raw-output '.bibliography_sources_path // empty' <<<"$json" )" || value=""
-	if [[ -n "$value" ]]; then
+	if jq --exit-status 'has("bibliography_sources_path")' <<<"$json" >"/dev/null"; then
+		value="$(jq --raw-output '.bibliography_sources_path // ""' <<<"$json")"
 		bibliography_sources_path="$value/$bibliography_name"
 		old_bibliography_sources_path="$value"
 	else
 		bibliography_sources_path="$old_bibliography_sources_path/$bibliography_name"
 	fi
 
-	value="$(jq --raw-output '.temporary_files_path // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && temporary_files_path="$value"
-	value="$(jq --raw-output '.handlers.screenshot.page_script // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_page_script="$value"
-	value="$(jq --raw-output '.handlers.screenshot.maximum_height // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_maximum_height="$value"
-	value="$(jq --raw-output '.handlers.screenshot.width // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_width="$value"
-	value="$(jq --raw-output '.handlers.screenshot.viewport_height // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_viewport_height="$value"
-	value="$(jq --raw-output '.handlers.screenshot.browser_device_pixel_ratio // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_browser_device_pixel_ratio="$value"
-	value="$(jq --raw-output '.handlers.screenshot.zoom // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_zoom="$value"
-	value="$(jq --raw-output '.handlers.screenshot.reply_count // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_reply_count="$value"
+	if jq --exit-status 'has("temporary_files_path")' <<<"$json" >"/dev/null"; then
+		temporary_files_path="$(jq --raw-output '.temporary_files_path // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("page_script")' <<<"$json" >"/dev/null"; then
+		screenshot_page_script="$(jq --raw-output '.handlers.screenshot.page_script // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("maximum_height")' <<<"$json" >"/dev/null"; then
+		screenshot_maximum_height="$(jq --raw-output '.handlers.screenshot.maximum_height // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("width")' <<<"$json" >"/dev/null"; then
+		screenshot_width="$(jq --raw-output '.handlers.screenshot.width // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("viewport_height")' <<<"$json" >"/dev/null"; then
+		screenshot_viewport_height="$(jq --raw-output '.handlers.screenshot.viewport_height // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("browser_device_pixel_ratio")' <<<"$json" >"/dev/null"; then
+		screenshot_browser_device_pixel_ratio="$(jq --raw-output '.handlers.screenshot.browser_device_pixel_ratio // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("zoom")' <<<"$json" >"/dev/null"; then
+		screenshot_zoom="$(jq --raw-output '.handlers.screenshot.zoom // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("reply_count")' <<<"$json" >"/dev/null"; then
+		screenshot_reply_count="$(jq --raw-output '.handlers.screenshot.reply_count // ""' <<<"$json")"
+	fi
 
-	value="$(jq --raw-output '.handlers.wget.wait // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && wget_wait="$value"
-	value="$(jq --raw-output '.handlers.wget.limit_rate // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && wget_limit_rate="$value"
+	if jq --exit-status '.handlers.wget | has("wait")' <<<"$json" >"/dev/null"; then
+		wget_wait="$(jq --raw-output '.handlers.wget.wait // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.wget | has("limit_rate")' <<<"$json" >"/dev/null"; then
+		wget_limit_rate="$(jq --raw-output '.handlers.wget.limit_rate // ""' <<<"$json")"
+	fi
 
-	value="$(jq --raw-output '.handlers["wget-text"].arguments_file // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && wget_text_arguments_file="$value"
-	wget_text_arguments=()
-	while IFS= read -r line; do
-		[[ -n "$line" ]] && wget_text_arguments+=("$line")
-	done < <(jq --raw-output '.handlers["wget-text"].arguments[]? // empty' <<<"$json" ||:)
+	if jq --exit-status '.handlers["wget-text"] | has("arguments_file")' <<<"$json" >"/dev/null"; then
+		wget_text_arguments_file="$(jq --raw-output '.handlers["wget-text"].arguments_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers["wget-text"] | has("arguments")' <<<"$json" >"/dev/null"; then
+		wget_text_arguments=()
+		while IFS= read -r line; do
+			[[ -n "$line" ]] && wget_text_arguments+=("$line")
+		done < <(jq --raw-output '.handlers["wget-text"].arguments[]? // empty' <<<"$json" ||:)
+	fi
 
-	value="$(jq --raw-output '.handlers.singlefile.wait_until // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && singlefile_wait_until="$value"
+	if jq --exit-status '.handlers.singlefile | has("wait_until")' <<<"$json" >"/dev/null"; then
+		singlefile_wait_until="$(jq --raw-output '.handlers.singlefile.wait_until // ""' <<<"$json")"
+	fi
 
-	value="$(jq --raw-output '.handlers["wget-text"].output_as_zip // true' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && wget_text_output_as_zip="$value"
+	if jq --exit-status '.handlers["wget-text"] | has("output_as_zip")' <<<"$json" >"/dev/null"; then
+		wget_text_output_as_zip="$(jq --raw-output '.handlers["wget-text"].output_as_zip' <<<"$json")"
+	fi
 
 	local name
 	for name in gallery-dl wget wget-text screenshot singlefile json-to-html; do
-		value="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled // false' <<<"$json" )" || value=""
-		[[ -n "$value" ]] && handler_enabled["$name"]="$value"
+		if jq --exit-status --arg n "$name" '.handlers[$n] | has("enabled")' <<<"$json" >"/dev/null"; then
+			handler_enabled["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled' <<<"$json")"
+		fi
 
-		value="$(jq --raw-output --arg n "$name" '.handlers[$n].output_path // empty' <<<"$json" )" || value=""
-		[[ -n "$value" ]] && handler_output_path["$name"]="$value"
+		if jq --exit-status --arg n "$name" '.handlers[$n] | has("output_path")' <<<"$json" >"/dev/null"; then
+			handler_output_path["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].output_path // ""' <<<"$json")"
+		fi
 
-		value="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // $n' <<<"$json" )" || value=""
-		[[ -n "$value" ]] && handler_leaf_name["$name"]="$value"
+		if jq --exit-status --arg n "$name" '.handlers[$n] | has("leaf_folder")' <<<"$json" >"/dev/null"; then
+			handler_leaf_name["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // ""' <<<"$json")"
+		fi
 	done
 
-	value="$(jq --raw-output '.handlers["gallery-dl"].cookie_file // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && gallery_dl_cookie_file="$value"
-	value="$(jq --raw-output '.handlers.wget.cookie_file // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && wget_cookie_file="$value"
-	value="$(jq --raw-output '.handlers["wget-text"].cookie_file // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && wget_text_cookie_file="$value"
-	value="$(jq --raw-output '.handlers.screenshot.cookie_file // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && screenshot_cookie_file="$value"
-	value="$(jq --raw-output '.handlers.singlefile.cookie_file // empty' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && singlefile_cookie_file="$value"
-	value="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json" )" || value=""
-	[[ -n "$value" ]] && handler_leaf_name["gallery-dl"]="$value"
+	if jq --exit-status '.handlers["gallery-dl"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		gallery_dl_cookie_file="$(jq --raw-output '.handlers["gallery-dl"].cookie_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.wget | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		wget_cookie_file="$(jq --raw-output '.handlers.wget.cookie_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers["wget-text"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		wget_text_cookie_file="$(jq --raw-output '.handlers["wget-text"].cookie_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.screenshot | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		screenshot_cookie_file="$(jq --raw-output '.handlers.screenshot.cookie_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers.singlefile | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		singlefile_cookie_file="$(jq --raw-output '.handlers.singlefile.cookie_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers["gallery-dl"] | has("leaf_folder")' <<<"$json" >"/dev/null"; then
+		handler_leaf_name["gallery-dl"]="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json")"
+	fi
 
 	return 0
 }

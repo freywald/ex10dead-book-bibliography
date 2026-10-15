@@ -5,50 +5,50 @@
 # --method-enable-* on the command line overrides enabled for that run.
 
 bibliography_name: Bibliography
-archive_path: "3. Ausfertigung/Quellen/Web-Archive/"
-bibliography_sources_path: "3. Ausfertigung/Quellen/"
+archive_path: "Web-Archive/"
+bibliography_sources_path: "Quellen/"
 temporary_files_path: /tmp/bibliography-working-directory/
 
 handlers:
     gallery-dl:
         enabled: false
-        output_path: dump/
-        leaf_folder: ""
+        output_path: "gallery-dl/"
+        leaf_folder: "gallery-dl"
         cookie_file: ""
     wget:
         enabled: false
-        output_path: web-archive/
-        leaf_folder: wget
+        output_path: "web-archive/"
+        leaf_folder: "wget"
         wait: 2
-        limit_rate: 500k
+        limit_rate: "500k"
         cookie_file: ""
     wget-text:
         enabled: false
-        output_path: web-archive/
-        leaf_folder: wget-text
+        output_path: "web-archive/"
+        leaf_folder: "wget-text"
         output_as_zip: true
         arguments: []
         arguments_file: ""
         cookie_file: ""
     screenshot:
         enabled: false
-        output_path: web-archive/
-        leaf_folder: screenshot
-        page_script: library/utilities/screenshot-handler-page.js
+        output_path: "web-archive/"
+        leaf_folder: "screenshot"
+        page_script: "library/utilities/screenshot-handler-page.js"
         maximum_height: 16000
-        width: "640"
-        viewport_height: "800"
+        width: 640
+        viewport_height: 800
         browser_device_pixel_ratio: 4
         zoom: 1
         reply_count: 3
         cookie_file: ""
     singlefile:
         enabled: false
-        output_path: web-archive/
-        leaf_folder: singlefile
-        wait_until: networkIdle
+        output_path: "web-archive/"
+        leaf_folder: "singlefile"
+        wait_until: "networkIdle"
         cookie_file: ""
     json-to-html:
         enabled: false
-        output_path: web-archive/
-        leaf_folder: json-to-html
+        output_path: "web-archive/"
+        leaf_folder: "json-to-html"
