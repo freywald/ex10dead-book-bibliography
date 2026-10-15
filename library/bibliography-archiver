@@ -135,7 +135,7 @@ print_archive_status() {
 		zip_display="${zip_display#/}"
 		local gallerydl_file="" gallerydl_display="" tweet_id
 		tweet_id="$(twitter_status_id "$queued_url")"
-		gallerydl_file="$(gallerydl_json_for_url "$queued_url")"
+		gallerydl_file="$(gallerydl_json_for_url "$queued_url")" || gallerydl_file=""
 		if [[ -n "$gallerydl_file" && -f "$gallerydl_file" ]]; then
 			gallerydl_display="${gallerydl_file#"$archive_path"}"
 			gallerydl_display="${gallerydl_display#/}"
@@ -547,7 +547,7 @@ function manage_archive_for_url() {
 	fi
 	if $archive_run_gallerydl; then
 		per_url_handler=true
-		gallerydl_ok_file="$(gallerydl_json_for_url "$url" ||:)"
+		gallerydl_ok_file="$(gallerydl_json_for_url "$url" )" || value=""
 		[[ -f "$gallerydl_ok_file" ]] && wrote=true
 	fi
 	if $archive_run_wget_text; then
@@ -1122,16 +1122,17 @@ function bibliography_archive(){
 	declare -A wget_zip_paths_this_session=()
 	declare -A expected_archive_paths=()
 
-	local defaults_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
-	[[ ! -f "$defaults_file" ]] && { __error "default configuration file not found: %s" "$defaults_file"; local_exit_failsafe; }
-	load_configuration_file "$defaults_file"
+	local default_configuration_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
+	[[ ! -f "$default_configuration_file" ]] && { __error "default configuration file not found: %s" "$default_configuration_file"; local_exit_failsafe; }
+
+	__info "loading file %s" "$default_configuration_file"
+	load_configuration_file "$default_configuration_file"
+
 	local configuration_file
 	for configuration_file in "${configuration_files[@]}"; do
-		[[ ! -f "$configuration_file" ]] && { __error "configuration file %s does not exist" "$configuration_file"; local_exit_failsafe; }
 		__info "loading file %s" "$configuration_file"
-		echo "temporary_files_path=$temporary_files_path"
+		[[ ! -f "$configuration_file" ]] && { __error "configuration file %s does not exist" "$configuration_file"; local_exit_failsafe; }
 		load_configuration_file "$configuration_file"
-		echo "temporary_files_path=$temporary_files_path"
 	done
 
 	[[ -n "$archive_path" ]] || { __error "archive_path is required"; local_exit_failsafe; }
