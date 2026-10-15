@@ -212,7 +212,7 @@ handler_json_to_html_reconstruct() {
 		local tweet_dir
 		tweet_dir="$(dirname -- "$json")"
 		user_id="$(basename -- "$(dirname -- "$tweet_dir")")"
-		out_dir="$(handler_leaf_dir json-to-html "$user_id/$(basename -- "$tweet_dir")")"
+		out_dir="$(handler_leaf_dir "json-to-html" "$user_id/$(basename -- "$tweet_dir")")"
 		output="$out_dir/reconstructed-twitter-thread.html"
 		manifest="$out_dir/reconstructed-twitter-thread.manifest"
 		mkdir --parents -- "$out_dir"

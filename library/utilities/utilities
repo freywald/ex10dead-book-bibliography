@@ -127,7 +127,7 @@ gallerydl_json_for_url() {
 	[[ -n "$tweet_id" ]] || return 1
 	id_path="${queued_ids[$url]-}"
 	[[ -n "$id_path" ]] || return 1
-	dir="$(handler_leaf_dir gallery-dl "$id_path")"
+	dir="$(handler_leaf_dir "gallery-dl" "$id_path")"
 	json="$dir/$tweet_id.json"
 	handler_gallerydl_warn_extra_json "$dir" "$tweet_id.json"
 	[[ -f "$json" ]] || return 1

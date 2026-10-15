@@ -345,7 +345,7 @@ function handler_wget_download() {
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
 	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")"
 	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".")
-	rmdir -- "$directory" 2>"/dev/null" ||:
+	rmdir -- "$directory" ||:
 
 	if (( remote_mtime > 0 )); then
 		touch -d "@$remote_mtime" "$zip_archive"

@@ -117,7 +117,7 @@ function handler_gallerydl_download() {
 	tweet_id="$(twitter_status_id "$url")"
 	mkdir --parents -- "$gallerydl_dump_path"
 
-	json="$(gallerydl_json_for_url "$url" ||: )"
+	json="$(gallerydl_json_for_url "$url" )" || json=""
 	if [[ -n "$json" && -f "$json" ]]; then
 		tweet_dir="$(dirname -- "$json")"
 		handler_gallerydl_backup_leaf "$tweet_dir" || { __warn "gallery-dl backup failed for %s" "$url"; return $?; }
