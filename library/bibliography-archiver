@@ -28,6 +28,7 @@ abort_on_interrupt() {
 	if (( status == 130 || status == 143 )); then
 		exit "$status"
 	fi
+
 	return 0
 }
 
@@ -63,6 +64,7 @@ apply_configuration_enables() {
 }
 
 status_wanted() {
+
 	local zip_ok="$1" singlefile_ok="$2" screenshot_ok="$3" gallerydl_ok="$4" remote="${5-}" wget_text_ok="${6:-true}" reconstruct_ok="${7:-true}"
 	if ! $show_archived && ! $show_missing && ! $show_missing_wget \
 		&& ! $show_missing_singlefile && ! $show_missing_screenshot \
@@ -1141,6 +1143,10 @@ function bibliography_archive(){
 			fi
 		fi
 	done
+
+	if $show_missing_wget || $show_missing_singlefile || $show_missing_screenshot || $show_missing_gallerydl || $show_missing_wget_text || $show_missing_thread_html; then
+		show_missing=false
+	fi
 
 	set -- "${handler_arguments[@]}"
 
