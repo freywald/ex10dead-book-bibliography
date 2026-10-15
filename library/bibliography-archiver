@@ -1131,12 +1131,12 @@ function bibliography_archive(){
 	local default_configuration_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
 	[[ ! -f "$default_configuration_file" ]] && { __error "default configuration file not found: %s" "$default_configuration_file"; local_exit_failsafe; }
 
-	__info "loading file %s" "$default_configuration_file"
+	__verbose "loading configuration file %s" "$default_configuration_file"
 	load_configuration_file "$default_configuration_file"
 
 	local configuration_file
 	for configuration_file in "${configuration_files[@]}"; do
-		__info "loading file %s" "$configuration_file"
+		__verbose "loading configuration file %s" "$configuration_file"
 		[[ ! -f "$configuration_file" ]] && { __error "configuration file %s does not exist" "$configuration_file"; local_exit_failsafe; }
 		load_configuration_file "$configuration_file"
 	done

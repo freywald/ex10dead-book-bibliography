@@ -14,12 +14,12 @@ load_configuration_file() {
 
 	local value
 	value="$(jq --raw-output '.bibliography_name // empty' <<<"$json" )" || value=""
-	if [[ -n "$value" && -z "${bibliography_name-}" ]]; then
+	if [[ -n "$value" ]]; then
 		bibliography_name="$value"
 	fi
 
 	value="$(jq --raw-output '.archive_path // empty' <<<"$json" )" || value=""
-	if [[ -n "$value" && -z "${archive_path-}" ]]; then
+	if [[ -n "$value" ]]; then
 		archive_path="$value/$bibliography_name"
 		old_archive_path="$value"
 	else
@@ -27,7 +27,7 @@ load_configuration_file() {
 	fi
 
 	value="$(jq --raw-output '.bibliography_sources_path // empty' <<<"$json" )" || value=""
-	if [[ -n "$value" && -z "${bibliography_sources_path-}" ]]; then
+	if [[ -n "$value" ]]; then
 		bibliography_sources_path="$value/$bibliography_name"
 		old_bibliography_sources_path="$value"
 	else

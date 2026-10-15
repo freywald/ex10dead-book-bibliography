@@ -2,11 +2,6 @@
 #
 # Indentation should be tabs.
 
-bibliography_name: Bibliography
-archive_path: "3. Ausfertigung/Quellen/Web-Archive/"
-bibliography_sources_path: "3. Ausfertigung/Quellen/"
-temporary_files_path: /tmp/bibliography-working-directory/
-
 handlers:
     gallery-dl:
         enabled: false
