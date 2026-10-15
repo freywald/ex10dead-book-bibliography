@@ -17,7 +17,7 @@ wget_text_arguments=()
 wget_text_arguments_file=""
 declare -gA handler_enabled=()
 declare -gA handler_output_path=()
-declare -gA handler_leaf=()
+declare -gA handler_leaf_name=()
 
 # configuration end
 
@@ -864,6 +864,7 @@ function bibliography_archive(){
 	wget_text_arguments=()
 	wget_text_arguments_file=""
 	backup_existing_archive=false
+	configuration_files=()
 
 	local -a handler_arguments=()
 	while (($# > 0 )); do
@@ -1055,11 +1056,12 @@ function bibliography_archive(){
 			show_missing_thread_html=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--configuration-file" ]]; then
-			configuration_file="${2-}"
-			[[ -n "$configuration_file" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+			[[ -n "${2-}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+			configuration_files+=("$2")
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--configuration-file="* ]]; then
-			configuration_file="${1#--configuration-file=}"
+			[[ -n "${1#--configuration-file=}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+			configuration_files+=("${1#--configuration-file=}")
 			shift || __expression_may_fail
 		elif [[ "$1" == "--method-enable-gallerydl" ]]; then
 			archive_run_gallerydl=true
@@ -1120,24 +1122,25 @@ function bibliography_archive(){
 	declare -A wget_zip_paths_this_session=()
 	declare -A expected_archive_paths=()
 
-	if [[ ! -f "$configuration_file" ]]; then
-		__error "configuration file %s does not exist" "$configuration_file"
-		local_exit_failsafe
-	fi
-
 	local defaults_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
-	[[ ! -f "$defaults_file" ]] && { __error "defaults file not found: %s" "$defaults_file"; local_exit_failsafe; }
+	[[ ! -f "$defaults_file" ]] && { __error "default configuration file not found: %s" "$defaults_file"; local_exit_failsafe; }
 	load_configuration_file "$defaults_file" || local_exit_failsafe
-	if [[ -n "$configuration_file" ]]; then
+echo "true";exit
+	local configuration_file
+	for configuration_file in "${configuration_files[@]}"; do
+		[[ ! -f "$configuration_file" ]] && { __error "configuration file %s does not exist" "$configuration_file"; local_exit_failsafe; }
+		__info "loading file %s" "$configuration_file"
+		echo "temporary_files_path=$temporary_files_path"
 		load_configuration_file "$configuration_file" || local_exit_failsafe
-	fi
+		echo "temporary_files_path=$temporary_files_path"
+	done
 
 	[[ -n "$archive_path" ]] || { __error "archive_path is required"; local_exit_failsafe; }
 	[[ -n "$bibliography_name" ]] || { __error "bibliography_name is required"; local_exit_failsafe; }
 	[[ -n "$bibliography_sources_path" ]] || { __error "bibliography_sources_path is required"; local_exit_failsafe; }
 
 	apply_configuration_enables
-	exit
+
 	$archive_run_gallerydl && handler_gallerydl_parse_arguments
 	$archive_run_wget_text && handler_wget_text_parse_arguments
 	$archive_run_wget && handler_wget_parse_arguments

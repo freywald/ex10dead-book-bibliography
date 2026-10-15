@@ -1,29 +1,40 @@
 #!/bin/bash
 
+old_archive_path=""
+old_bibliography_sources_path=""
+
 load_configuration_file() {
 	local file="$1"
-	[[ -f "$file" ]] || { __error "configuration file not found: %s" "$file"; return 1; }
-	command -v yq >"/dev/null" || { __error "yq is required to read %s" "$file"; return 1; }
+	[[ ! -f "$file" ]] && { __error "configuration file not found: %s" "$file"; return 1; }
+	! command -v yq >"/dev/null" && { __error "yq is required to read %s" "$file"; return 1; }
 
 	local json
 	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || return 1
 
+	local value
 	value="$(jq --raw-output '.bibliography_name // empty' <<<"$json")"
-	[[ -n "$value" && -z "${bibliography_name-}" ]] && bibliography_name="$value"
+	if [[ -n "$value" && -z "${bibliography_name-}" ]]; then
+		bibliography_name="$value"
+	fi
 
 	value="$(jq --raw-output '.archive_path // empty' <<<"$json")"
 	if [[ -n "$value" && -z "${archive_path-}" ]]; then
 		archive_path="$value/$bibliography_name"
+		old_archive_path="$value"
+	else
+		archive_path="$old_archive_path/$bibliography_name"
 	fi
 
 	value="$(jq --raw-output '.bibliography_sources_path // empty' <<<"$json")"
 	if [[ -n "$value" && -z "${bibliography_sources_path-}" ]]; then
 		bibliography_sources_path="$value/$bibliography_name"
+		old_bibliography_sources_path="$value"
+	else
+		bibliography_sources_path="$old_bibliography_sources_path/$bibliography_name"
 	fi
 
-	temporary_files_path="$(jq --raw-output '.temporary_files_path // empty' <<<"$json")"
-
-	local value
+	value="$(jq --raw-output '.temporary_files_path // empty' <<<"$json")"
+	[[ -n "$value" ]] && temporary_files_path="$value"
 	value="$(jq --raw-output '.handlers.screenshot.page_script // empty' <<<"$json")"
 	[[ -n "$value" ]] && screenshot_page_script="$value"
 	value="$(jq --raw-output '.handlers.screenshot.maximum_height // empty' <<<"$json")"
@@ -46,6 +57,7 @@ load_configuration_file() {
 
 	value="$(jq --raw-output '.handlers["wget-text"].arguments_file // empty' <<<"$json")"
 	[[ -n "$value" ]] && wget_text_arguments_file="$value"
+
 	wget_text_arguments=()
 	while IFS= read -r line; do
 		[[ -n "$line" ]] && wget_text_arguments+=("$line")
@@ -54,13 +66,19 @@ load_configuration_file() {
 	value="$(jq --raw-output '.handlers.singlefile.wait_until // empty' <<<"$json")"
 	[[ -n "$value" ]] && singlefile_wait_until="$value"
 
-	wget_text_output_as_zip="$(jq --raw-output '.handlers["wget-text"].output_as_zip // true' <<<"$json")"
+	value="$(jq --raw-output '.handlers["wget-text"].output_as_zip // true' <<<"$json")"
+	[[ -n "$value" ]] && wget_text_output_as_zip="$value"
 
 	local name
 	for name in gallery-dl wget wget-text screenshot singlefile json-to-html; do
-		handler_enabled["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled // false' <<<"$json")"
-		handler_output_path["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].output_path // empty' <<<"$json")"
-		handler_leaf["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // $n' <<<"$json")"
+		value="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled // false' <<<"$json")"
+		[[ -n "$value" ]] && handler_enabled["$name"]="$value"
+
+		value="$(jq --raw-output --arg n "$name" '.handlers[$n].output_path // empty' <<<"$json")"
+		[[ -n "$value" ]] && handler_output_path["$name"]="$value"
+
+		value="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // $n' <<<"$json")"
+		[[ -n "$value" ]] && handler_leaf_name["$name"]="$value"
 	done
 
 	value="$(jq --raw-output '.handlers["gallery-dl"].cookie_file // empty' <<<"$json")"
@@ -74,14 +92,15 @@ load_configuration_file() {
 	value="$(jq --raw-output '.handlers.singlefile.cookie_file // empty' <<<"$json")"
 	[[ -n "$value" ]] && singlefile_cookie_file="$value"
 
-	handler_leaf["gallery-dl"]="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json")"
+	value="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json")"
+	[[ -n "$value" ]] && handler_leaf_name["gallery-dl"]="$value"
 }
 
 verify_handler_layout() {
 	local name leaf path gallery_real other_real
 	for name in wget wget-text screenshot singlefile json-to-html; do
 		[[ "${handler_enabled[$name]}" == "true" ]] || continue
-		leaf="${handler_leaf[$name]-}"
+		leaf="${handler_leaf_name[$name]-}"
 		if [[ -z "$leaf" ]]; then
 			__error "leaf_folder must be set for %s" "$name"
 			return 1

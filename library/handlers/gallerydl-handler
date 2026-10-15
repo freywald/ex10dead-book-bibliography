@@ -95,7 +95,7 @@ handler_gallerydl_backup_file() {
 handler_gallerydl_backup_leaf() {
 	local dir="$1" backup_dir file
 	[[ -d "$dir" ]] || return 0
-	if [[ -n "${handler_leaf[gallery-dl]-}" ]]; then
+	if [[ -n "${handler_leaf_name[gallery-dl]-}" ]]; then
 		backup_dir="$(dirname -- "$dir")/__backups"
 	else
 		backup_dir="$dir/__backups"

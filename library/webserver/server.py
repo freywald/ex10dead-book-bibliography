@@ -334,7 +334,7 @@ a.sf{color:#7a2ea0}
 			self.path = "/" + inner
 		return NoCacheHTTPRequestHandler.do_GET(self)
 
-def load_layout(configuration_file):
+def load_layout(configuration_files):
 	layout = {
 		"gallery-dl": {"output_path": "dump", "leaf_folder": ""},
 		"screenshot": {"output_path": "web-archive", "leaf_folder": "screenshot"},
@@ -343,20 +343,18 @@ def load_layout(configuration_file):
 		"singlefile": {"output_path": "web-archive", "leaf_folder": "singlefile"},
 		"json-to-html": {"output_path": "web-archive", "leaf_folder": "json-to-html"},
 	}
-	if not configuration_file:
-		return layout
-	import subprocess
-	raw = subprocess.check_output(["expand", "-t", "4", configuration_file])
-	parsed = subprocess.check_output(["yq", "--output-format=json"], input=raw)
-	data = json.loads(parsed)
-	for name, item in (data.get("handlers") or {}).items():
-		slot = layout.setdefault(name, {})
-		if "output_path" in item:
-			slot["output_path"] = item["output_path"]
-		if "leaf_folder" in item:
-			slot["leaf_folder"] = item["leaf_folder"]
-		if "output_as_zip" in item:
-			slot["output_as_zip"] = item["output_as_zip"]
+	for configuration_file in configuration_files or []:
+		raw = subprocess.check_output(["expand", "-t", "4", configuration_file])
+		parsed = subprocess.check_output(["yq", "--output-format=json"], input=raw)
+		data = json.loads(parsed)
+		for name, item in (data.get("handlers") or {}).items():
+			slot = layout.setdefault(name, {})
+			if "output_path" in item:
+				slot["output_path"] = item["output_path"]
+			if "leaf_folder" in item:
+				slot["leaf_folder"] = item["leaf_folder"]
+			if "output_as_zip" in item:
+				slot["output_as_zip"] = item["output_as_zip"]
 	return layout
 
 def main():
@@ -368,7 +366,7 @@ def main():
 	parser.add_argument("-H", "--host", default="127.0.0.1",
 						help="Host to bind to (use 127.0.0.1 for network access)")
 	parser.add_argument("--archive-root", default=None)
-	parser.add_argument("--configuration-file", default=None)
+	parser.add_argument("--configuration-file", action="append", default=[])
 
 	args = parser.parse_args()
 	signal.signal(signal.SIGINT, signal_handler)

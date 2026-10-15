@@ -67,14 +67,14 @@ handler_id_dir() {
 
 handler_leaf_dir() {
 	local name="$1" id="$2" leaf id_dir
-	if [[ -z "${handler_leaf[$name]+set}" ]]; then
+	if [[ -z "${handler_leaf_name[$name]+set}" ]]; then
 		if [[ "$name" == "gallery-dl" ]]; then
 			leaf=""
 		else
 			leaf="$name"
 		fi
 	else
-		leaf="${handler_leaf[$name]}"
+		leaf="${handler_leaf_name[$name]}"
 	fi
 	id_dir="$(handler_id_dir "$name" "$id")"
 	if [[ -n "$leaf" ]]; then

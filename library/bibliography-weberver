@@ -26,6 +26,8 @@ function local_exit_failsafe() { __exit_failsafe; exit 1; }
 
 walk_archive=false
 show_extras=false
+configuration_files=()
+
 arguments=()
 while (($# > 0)); do
 	if [[ "$1" == "--debug" ]]; then
@@ -39,6 +41,14 @@ while (($# > 0)); do
 		shift || __expression_may_fail
 	elif [[ "$1" == "--walk-archive" || "$1" == "--all" ]]; then
 		walk_archive=true
+		shift || __expression_may_fail
+	elif [[ "$1" == "--configuration-file" ]]; then
+		[[ -n "${2-}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+		configuration_files+=("$2")
+		shift 2 || __expression_may_fail
+	elif [[ "$1" == "--configuration-file="* ]]; then
+		[[ -n "${1#--configuration-file=}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+		configuration_files+=("${1#--configuration-file=}")
 		shift || __expression_may_fail
 	elif [[ "$1" == "--extras" ]]; then
 		show_extras=true
@@ -112,7 +122,15 @@ pick_and_serve_zip() {
 	__heading "Starting webserver for %s…" "${label:-$found_url}"
 	__info "Please open any web browser of your liking and navigate to address %s" "http://127.0.0.1:8080"
 	echo
-	python3 "$python_webserver_library_path" --directory "$serve" --port "8080" --host "127.0.0.1"
+
+	local -a configuration_arguments=()
+	local configuration_file
+	for configuration_file in "${configuration_files[@]}"; do
+		configuration_arguments+=(--configuration-file "$configuration_file")
+	done
+
+	python3 "$python_webserver_library_path" --archive-root "$archive_path" --port "8080" --host "127.0.0.1" "${configuration_arguments[@]}"
+	python3 "$python_webserver_library_path" --directory "$serve" --port "8080" --host "127.0.0.1" "${configuration_arguments[@]}"
 }
 
 if ! $show_extras; then
