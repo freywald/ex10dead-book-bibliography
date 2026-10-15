@@ -93,19 +93,23 @@ verify_handler_layout() {
 		return 1
 	fi
 
-	[[ -n "${handler_output_path[gallery-dl]-}" ]] || { __error "gallery-dl output_path is empty"; return 1; }
-
-	gallery_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[gallery-dl]}")" || { __error "cannot resolve gallery-dl output_path"; return 1; }
-
 	for name in wget wget-text screenshot singlefile json-to-html; do
 		[[ "${handler_enabled[$name]}" == "true" ]] || continue
 		[[ -n "${handler_output_path[$name]-}" ]] || { __error "%s output_path is empty" "$name"; return 1; }
-		other_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[$name]}")" || { __error "cannot resolve %s output_path" "$name"; return 1; }
-		if [[ "$gallery_real" == "$other_real" ]]; then
-			__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
-			return 1
-		fi
 	done
+
+	if [[ "${handler_enabled[gallery-dl]}" == "true" ]]; then
+		[[ -n "${handler_output_path[gallery-dl]-}" ]] || { __error "gallery-dl output_path is empty"; return 1; }
+		gallery_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[gallery-dl]}")" || { __error "cannot resolve gallery-dl output_path"; return 1; }
+		for name in wget wget-text screenshot singlefile json-to-html; do
+			[[ "${handler_enabled[$name]}" == "true" ]] || continue
+			other_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[$name]}")" || { __error "cannot resolve %s output_path" "$name"; return 1; }
+			if [[ "$gallery_real" == "$other_real" ]]; then
+				__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
+				return 1
+			fi
+		done
+	fi
 
 	local temp_real
 	temp_real="$(realpath --canonicalize-missing -- "$temporary_files_path")" || { __error "cannot resolve temporary_files_path %s" "$temporary_files_path"; return 1; }

@@ -65,7 +65,7 @@ function handler_singlefile_download() {
 	fi
 
 	__info "Downloading singlefile %s" "$url"
-	handler_singlefile_backup_file "$output_directory" || return $?
+	handler_singlefile_backup_file "$output_directory" || { __warn "singlefile backup failed for %s" "$url"; return $?; }
 
 	local work="$temporary_files_path/$(date +%s)-singlefile"
 	mkdir --parents -- "$work"

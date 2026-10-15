@@ -63,9 +63,12 @@ function handler_wget_download() {
 
 	local headers=""
 	local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
-	[[ -n "${gallery_dl_cookie_file-}" && -f "$wget_cookie_file" ]] && curl_args+=(--cookie "$wget_cookie_file")
-	headers="$(curl "${curl_args[@]}" -- "$url")"
-	headers="${headers-}"
+	[[ -n "${wget_cookie_file-}" && -f "$wget_cookie_file" ]] && curl_args+=(--cookie "$wget_cookie_file")
+	headers="$(curl "${curl_args[@]}" -- "$url")" || status=$?
+	abort_on_interrupt "$status"
+	if (( status != 0 )); then
+		headers=""
+	fi
 	local http_status="${headers: -3}"
 	http_status="${http_status:-000}"
 
@@ -85,11 +88,11 @@ function handler_wget_download() {
 	__debug "$url"
 	__debug "$headers"
 
-	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || true; } | head -1 | cut -d: -f2-)"
+	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||:; } | head -1 | cut -d: -f2-)"
 	last_modified="${last_modified-}"
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
-	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
+	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||:; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 
 	remote_mtime=0
 	local status=0
@@ -342,7 +345,7 @@ function handler_wget_download() {
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
 	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")"
 	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".")
-	rmdir -- "$directory" 2>"/dev/null" || true
+	rmdir -- "$directory" 2>"/dev/null" ||:
 
 	if (( remote_mtime > 0 )); then
 		touch -d "@$remote_mtime" "$zip_archive"

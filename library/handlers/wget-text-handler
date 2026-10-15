@@ -104,7 +104,7 @@ handler_wget_text_download() {
 			__verbose "Skipping wget-text %s, zip exists" "$url"
 			return 0
 		fi
-		handler_wget_text_backup "$(dirname -- "$expected_zip")" "$expected_zip" || return $?
+		handler_wget_text_backup "$(dirname -- "$expected_zip")" "$expected_zip" || { __warn "wget-text backup failed for %s" "$url"; return $?; }
 		work="$temporary_files_path/$(date +%s)-wget-text/$stem"
 		mkdir --parents -- "$work"
 		output_directory="$work"
@@ -113,7 +113,7 @@ handler_wget_text_download() {
 			__verbose "Skipping wget-text %s, directory exists" "$url"
 			return 0
 		fi
-		handler_wget_text_backup "$output_directory" || return $?
+		handler_wget_text_backup "$output_directory" || { __warn "wget-text backup failed for %s" "$url"; return $?; }
 		mkdir --parents -- "$output_directory"
 		work="$output_directory"
 	fi
@@ -127,16 +127,10 @@ handler_wget_text_download() {
 		done < "$wget_text_arguments_file"
 	fi
 	args+=("${wget_text_arguments[@]}")
-	trap 'handler_wget_text_backup "$work"; exit 130' INT
-	trap 'handler_wget_text_backup "$work"; exit 143' TERM
 	wget "${args[@]}" --directory-prefix="$output_directory" --domains="$domain" -- "$url" || status=$?
-	trap - INT TERM
-	if (( status == 130 || status == 143 )); then
-		handler_wget_text_backup "$work"
-		exit "$status"
-	fi
+	abort_on_interrupt "$status"
 	if (( status != 0 )); then
-		handler_wget_text_backup "$work" || return $?
+		handler_wget_text_backup "$work" || { __warn "wget-text backup failed for %s" "$url"; return $?; }
 		return "$status"
 	fi
 

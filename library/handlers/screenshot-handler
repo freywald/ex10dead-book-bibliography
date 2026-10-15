@@ -198,7 +198,7 @@ handler_make_screenshot_with_shot_scraper() {
 
 	__info "Writing screenshot to: %s" "$output_directory"
 
-	handler_screenshot_backup_file "$output_directory" || return $?
+	handler_screenshot_backup_file "$output_directory" || { __warn "screenshot backup failed for %s" "$url"; return $?; }
 	handler_screenshot_require_page_script || return 22
 
 	local work="$temporary_files_path/$(date +%s)-screenshot"

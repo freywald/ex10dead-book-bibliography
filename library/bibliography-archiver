@@ -184,8 +184,11 @@ print_archive_status() {
 		if $probe && $archive_run_wget; then
 			local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 			[[ -n "${gallery_dl_cookie_file-}" && -f "$gallery_dl_cookie_file" ]] && curl_args+=(--cookie "$gallery_dl_cookie_file")
-			headers="$(curl "${curl_args[@]}" -- "$queued_url")"
-			headers="${headers-}"
+			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || status=$?
+			abort_on_interrupt "$status"
+			if (( status != 0 )); then
+				headers=""
+			fi
 			http_status="${headers: -3}"
 			http_status="${http_status:-000}"
 
@@ -194,11 +197,11 @@ print_archive_status() {
 			elif [[ "$http_status" != 2* ]]; then
 				remote_note="http ${http_status}"
 			else
-				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || true; } | head -1 | cut -d: -f2-)"
+				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||:; } | head -1 | cut -d: -f2-)"
 				last_modified="${last_modified-}"
 				last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 				last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
-				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || true; } | head -1 | cut -d: -f2- | tr -d '\" ')"
+				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||:; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 				remote_mtime=0
 				local status=0
 				if [[ -n "$last_modified" ]]; then
@@ -424,14 +427,30 @@ function manage_archive_for_url() {
 	local screenshot_path="$(handler_leaf_dir screenshot "$url_identifier")/screenshot.png"
 
 	local wget_status=0 singlefile_status=0 screenshot_status=0 gallerydl_status=0 wget_text_status=0
+
 	if $archive_run_wget; then
 		handler_wget_download "$url" "$target_directory_name/" "$url_identifier" "$url_kind" || wget_status=$?
+		if (( wget_status == 130 || wget_status == 143 )); then exit "$wget_status"; fi
+		if (( wget_status != 0 )); then
+			__warn "archive incomplete for %s after wget status %s" "$url" "$wget_status"
+			return 0
+		fi
 	fi
 	if $archive_run_singlefile; then
 		handler_singlefile_download "$url" "$singlefile_path" || singlefile_status=$?
+		if (( singlefile_status == 130 || singlefile_status == 143 )); then exit "$singlefile_status"; fi
+		if (( singlefile_status != 0 )); then
+			__warn "archive incomplete for %s after singlefile status %s" "$url" "$singlefile_status"
+			return 0
+		fi
 	fi
 	if $archive_run_gallerydl; then
 		handler_gallerydl_download "$url" || gallerydl_status=$?
+		if (( gallerydl_status == 130 || gallerydl_status == 143 )); then exit "$gallerydl_status"; fi
+		if (( gallerydl_status != 0 )); then
+			__warn "archive incomplete for %s after gallery-dl status %s" "$url" "$gallerydl_status"
+			return 0
+		fi
 	fi
 	if $archive_run_wget_text; then
 		local wget_text_domain="${url#*://}"
@@ -443,9 +462,11 @@ function manage_archive_for_url() {
 			wget_text_out="$(handler_leaf_dir wget-text "$url_identifier")/$(basename -- "$url_identifier")"
 		fi
 		handler_wget_text_download "$url" "$wget_text_domain" "$wget_text_out" || wget_text_status=$?
-	fi
-	if (( wget_status == 130 || wget_status == 143 || singlefile_status == 130 || singlefile_status == 143 || gallerydl_status == 130 || gallerydl_status == 143 || wget_text_status == 130 || wget_text_status == 143 )); then
-		exit 130
+		if (( wget_text_status == 130 || wget_text_status == 143 )); then exit "$wget_text_status"; fi
+		if (( wget_text_status != 0 )); then
+			__warn "archive incomplete for %s after wget-text status %s" "$url" "$wget_text_status"
+			return 0
+		fi
 	fi
 	if $archive_run_make_screenshot; then
 		local screenshot_existed=false
@@ -454,20 +475,62 @@ function manage_archive_for_url() {
 		fi
 
 		handler_make_screenshot_with_shot_scraper "$url" "$screenshot_path" || screenshot_status=$?
-
+		if (( screenshot_status == 130 || screenshot_status == 143 )); then exit "$screenshot_status"; fi
 		if (( screenshot_status == 0 )) && ! $screenshot_existed; then
 			local screenshot_pause=$((5 + RANDOM % 10))
 			__info "waiting %s seconds before the next screenshot" "$screenshot_pause"
 			sleep "$screenshot_pause"
 		fi
+		if (( screenshot_status != 0 )); then
+			__warn "stopping %s after screenshot status %s" "$url" "$screenshot_status"
+			return 0
+		fi
 	fi
-	if (( screenshot_status == 130 || screenshot_status == 143 )); then
-		exit "$screenshot_status"
-	fi
-	if (( wget_status != 0 || singlefile_status != 0 || screenshot_status != 0 || gallerydl_status != 0 || wget_text_status != 0 )); then
-		__warn "archive incomplete for %s (wget=%s singlefile=%s screenshot=%s gallerydl=%s wget-text=%s)" \
-			"$url" "$wget_status" "$singlefile_status" "$screenshot_status" "$gallerydl_status" "$wget_text_status"
-	fi
+
+#	if $archive_run_wget; then
+#		handler_wget_download "$url" "$target_directory_name/" "$url_identifier" "$url_kind" || wget_status=$?
+#	fi
+#	if $archive_run_singlefile; then
+#		handler_singlefile_download "$url" "$singlefile_path" || singlefile_status=$?
+#	fi
+#	if $archive_run_gallerydl; then
+#		handler_gallerydl_download "$url" || gallerydl_status=$?
+#	fi
+#	if $archive_run_wget_text; then
+#		local wget_text_domain="${url#*://}"
+#		wget_text_domain="${wget_text_domain%%/*}"
+#		local wget_text_out
+#		if $wget_text_output_as_zip; then
+#			wget_text_out="$(archive_zip_path "$url" "$url_identifier" "$url_kind" wget-text)"
+#		else
+#			wget_text_out="$(handler_leaf_dir wget-text "$url_identifier")/$(basename -- "$url_identifier")"
+#		fi
+#		handler_wget_text_download "$url" "$wget_text_domain" "$wget_text_out" || wget_text_status=$?
+#	fi
+#	if (( wget_status == 130 || wget_status == 143 || singlefile_status == 130 || singlefile_status == 143 || gallerydl_status == 130 || gallerydl_status == 143 || wget_text_status == 130 || wget_text_status == 143 )); then
+#		exit 130
+#	fi
+#	if $archive_run_make_screenshot; then
+#		local screenshot_existed=false
+#		if [[ -f "$screenshot_path" ]] && ! $force_update_existing; then
+#			screenshot_existed=true
+#		fi
+#
+#		handler_make_screenshot_with_shot_scraper "$url" "$screenshot_path" || screenshot_status=$?
+#
+#		if (( screenshot_status == 0 )) && ! $screenshot_existed; then
+#			local screenshot_pause=$((5 + RANDOM % 10))
+#			__info "waiting %s seconds before the next screenshot" "$screenshot_pause"
+#			sleep "$screenshot_pause"
+#		fi
+#	fi
+#	if (( screenshot_status == 130 || screenshot_status == 143 )); then
+#		exit "$screenshot_status"
+#	fi
+#	if (( wget_status != 0 || singlefile_status != 0 || screenshot_status != 0 || gallerydl_status != 0 || wget_text_status != 0 )); then
+#		__warn "archive incomplete for %s (wget=%s singlefile=%s screenshot=%s gallerydl=%s wget-text=%s)" \
+#			"$url" "$wget_status" "$singlefile_status" "$screenshot_status" "$gallerydl_status" "$wget_text_status"
+#	fi
 
 	local per_url_handler=false wrote=false gallerydl_ok_file=""
 	if $archive_run_wget; then
@@ -484,7 +547,7 @@ function manage_archive_for_url() {
 	fi
 	if $archive_run_gallerydl; then
 		per_url_handler=true
-		gallerydl_ok_file="$(gallerydl_json_for_url "$url")"
+		gallerydl_ok_file="$(gallerydl_json_for_url "$url" ||:)"
 		[[ -f "$gallerydl_ok_file" ]] && wrote=true
 	fi
 	if $archive_run_wget_text; then

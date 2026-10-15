@@ -160,7 +160,7 @@ handler_json_to_html_reconstruct() {
 		local -a local_jsons=()
 		mapfile -t local_jsons < <(get_values "$key" "local" true)
 		local quoted_flag=""
-		quoted_flag="$(get_value "$key" "is_quoted_tweet" 2>"/dev/null" || true)"
+		quoted_flag="$(get_value "$key" "is_quoted_tweet" 2>"/dev/null" ||:)"
 		for local_json in "${local_jsons[@]}"; do
 		[[ -n "$local_json" && -f "$local_json" ]] || continue
 		[[ "$local_json" == *.json || "$local_json" == *.JSON ]] || continue
