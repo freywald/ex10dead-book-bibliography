@@ -177,7 +177,7 @@ function bibliography_webserver() {
 			__heading "Archives for %s" "$given_url_identifier"
 			i=0
 			for ((i = 0; i < ${#menu_paths[@]}; i++)); do
-				printf "  %2d  %s\n" "$((i + 1))" "${menu_labels[$i]}"
+				printf "  %2d  %s\n" "$((i + 1))||:" "${menu_labels[$i]}"
 			done
 			echo
 
