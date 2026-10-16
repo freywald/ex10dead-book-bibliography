@@ -354,4 +354,6 @@ function handler_wget_download() {
 	fi
 
 	[[ -n "$etag" ]] && printf '%s\n' "$etag" >| "$etag_file"
+
+	__success "wget finished %s" "$url"
 }

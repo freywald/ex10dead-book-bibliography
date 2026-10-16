@@ -259,5 +259,6 @@ handler_json_to_html_reconstruct() {
 		handler_json_to_html_render_group "$tweet_id" "$output"
 		mv -f -- "$next_manifest" "$manifest"
 		__info "Wrote reconstructed thread %s" "$output"
+		__success "json-to-html finished %s" "$output"
 	done
 }

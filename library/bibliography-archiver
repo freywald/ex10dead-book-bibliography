@@ -987,7 +987,6 @@ function bibliography_archive(){
 				__error "--archive-id requires an id"
 				local_exit_failsafe
 			fi
-			update_archive=true
 			force_update_existing=true
 			update_archive=true
 			shift || __expression_may_fail
@@ -997,7 +996,6 @@ function bibliography_archive(){
 				local_exit_failsafe
 			fi
 			filter_by_id="$2"
-			update_archive=true
 			archive_run_wget=true
 			archive_run_singlefile=false
 			archive_run_make_screenshot=false
@@ -1011,7 +1009,6 @@ function bibliography_archive(){
 				__error "--archive-wget-id requires an id"
 				local_exit_failsafe
 			fi
-			update_archive=true
 			archive_run_wget=true
 			archive_run_singlefile=false
 			archive_run_make_screenshot=false
@@ -1025,7 +1022,6 @@ function bibliography_archive(){
 				local_exit_failsafe
 			fi
 			filter_by_id="$2"
-			update_archive=true
 			archive_run_wget=false
 			archive_run_singlefile=true
 			archive_run_make_screenshot=false
@@ -1039,7 +1035,6 @@ function bibliography_archive(){
 				__error "--archive-singlefile-id requires an id"
 				local_exit_failsafe
 			fi
-			update_archive=true
 			archive_run_wget=false
 			archive_run_singlefile=true
 			archive_run_make_screenshot=false
@@ -1067,7 +1062,6 @@ function bibliography_archive(){
 				local_exit_failsafe
 			fi
 			filter_by_id="$2"
-			update_archive=true
 			archive_run_wget=false
 			archive_run_singlefile=false
 			archive_run_make_screenshot=true
@@ -1081,7 +1075,6 @@ function bibliography_archive(){
 				__error "--archive-screenshot-id requires an id"
 				local_exit_failsafe
 			fi
-			update_archive=true
 			archive_run_wget=false
 			archive_run_singlefile=false
 			archive_run_make_screenshot=true
@@ -1095,7 +1088,6 @@ function bibliography_archive(){
 				local_exit_failsafe
 			fi
 			filter_by_id="$2"
-			update_archive=true
 			archive_run_wget=false
 			archive_run_singlefile=false
 			archive_run_make_screenshot=false
@@ -1109,7 +1101,6 @@ function bibliography_archive(){
 				__error "--archive-gallerydl-id requires an id"
 				local_exit_failsafe
 			fi
-			update_archive=true
 			archive_run_wget=false
 			archive_run_singlefile=false
 			archive_run_make_screenshot=false

@@ -2,7 +2,7 @@
 
 # configuration start
 
-screenshot_cookie_file="$screenshot_cookie_file"
+screenshot_cookie_file=""
 screenshot_page_script="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/screenshot-handler-page.js"
 screenshot_maximum_height=16000
 screenshot_width="640"
@@ -58,40 +58,45 @@ handler_screenshot_parse_arguments() {
 			shift || __expression_may_fail
 		fi
 	done
+
 	set -- "${arguments[@]}"
 }
 
 handler_screenshot_backup_file() {
 	local file="$1"
 	[[ -f "$file" ]] || return 0
-	local hash ext name dest backup_directory
 
-	hash="$(sha256sum -- "$file" | awk '{print $1}')"
-    [[ -n "$hash" ]] || return 1
+	local hash extension name destination backup_directory status=0
 
-	ext="${file##*.}"
-	name="$hash.$ext.zip"
-	backup_directory="$(dirname -- "$(dirname -- "$file")")/__backups"
-	mkdir --parents -- "$backup_directory"
-	dest="$backup_directory/$name"
-
-	if [[ -f "$dest" ]]; then
-		return 0
-	fi
-
-	local status=0
-	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
-
+	hash="$(sha256sum -- "$file" | awk '{print $1}')" || status="$(abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		return "$status"
 	fi
-	__info "Wrote hash backup %s" "$dest"
+	[[ -n "$hash" ]] || return 1
+
+	extension="${file##*.}"
+	name="$hash.$extension.zip"
+	backup_directory="$(dirname -- "$(dirname -- "$file")")/__backups"
+	mkdir --parents -- "$backup_directory"
+	destination="$backup_directory/$name"
+
+	if [[ -f "$destination" ]]; then
+		return 0
+	fi
+
+	status=0
+	zip --no-wild --junk-paths --test "$destination" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		return "$status"
+	fi
+
+	__info "Wrote hash backup %s" "$destination"
 }
 
 handler_screenshot_twitter_cookies_json() {
 	local cookie_file="$1"
 	local line rest domain flag path secure expires name value
-	local http_only host
+	local http_only
 	local -a json_items=()
 
 	if [[ ! -f "$cookie_file" ]]; then
@@ -109,13 +114,11 @@ handler_screenshot_twitter_cookies_json() {
 		fi
 
 		IFS=$'\t' read -r domain flag path secure expires name value rest <<<"$line" || __expression_may_fail
-		unset flag rest
 
 		if [[ -z "$domain" || -z "$name" ]]; then
 			continue
 		fi
 
-		host="${domain#.}"
 
 		if [[ ! "$expires" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
 			expires="-1"
@@ -158,11 +161,11 @@ handler_screenshot_twitter_cookies_json() {
 
 handler_screenshot_cookies_to_storage_state() {
 	local cookie_file="$1"
-	local out_json="$2"
+	local output_json="$2"
 	local cookies
 
 	cookies="$(handler_screenshot_twitter_cookies_json "$cookie_file")" || return 55
-	jq --null-input --argjson cookies "$cookies" '{cookies: $cookies, origins: []}' >| "$out_json"
+	jq --null-input --argjson cookies "$cookies" '{cookies: $cookies, origins: []}' >| "$output_json"
 }
 
 handler_screenshot_require_page_script() {
@@ -192,9 +195,9 @@ handler_screenshot_log_failure() {
 handler_make_screenshot_with_shot_scraper() {
 	local url="$1"
 	local output_directory="$2"
-	local auth_file js_file
+	local auth_file page_script_file log_file
 	local status=0
-	local max_h="$screenshot_maximum_height"
+	local maximum_height="$screenshot_maximum_height"
 
 	if [[ -f "$output_directory" ]] && ! $force_update_existing; then
 		__verbose "Skipping screenshot %s, file exists" "$output_directory"
@@ -206,28 +209,27 @@ handler_make_screenshot_with_shot_scraper() {
 	handler_screenshot_backup_file "$output_directory" || { __warn "screenshot backup failed for %s" "$url"; return $?; }
 	handler_screenshot_require_page_script || return 22
 
-	local work="$temporary_files_path/$(date +%s)-screenshot"
-	mkdir --parents -- "$work"
-	auth_file="$work/auth.json"
-	js_file="$work/page.js"
-	local log_file="$work/shot-scraper.log"
+	local work_directory="$temporary_files_path/$(date +%s)-screenshot"
+	mkdir --parents -- "$work_directory"
+	auth_file="$work_directory/auth.json"
+	page_script_file="$work_directory/page.js"
+	log_file="$work_directory/shot-scraper.log"
 
 	if ! handler_screenshot_cookies_to_storage_state "$screenshot_cookie_file" "$auth_file"; then
 		return 21
 	fi
 
 	{
-		printf 'window.__SCREENSHOT_MAX_HEIGHT__ = %s;\n' "$max_h"
+		printf 'window.__SCREENSHOT_MAX_HEIGHT__ = %s;\n' "$maximum_height"
 		printf 'window.__SCREENSHOT_VIEWPORT_HEIGHT__ = %s;\n' "$screenshot_viewport_height"
 		printf 'window.__SCREENSHOT_ZOOM__ = %s;\n' "$screenshot_zoom"
 		printf 'window.__SCREENSHOT_REPLY_COUNT__ = %s;\n' "$screenshot_reply_count"
 		cat -- "$screenshot_page_script"
-	} >| "$js_file"
+	} >| "$page_script_file"
 
 	mkdir --parents -- "$(dirname -- "$output_directory")"
-	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$js_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status="$(abort_on_interrupt "$?")"
+	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$page_script_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status="$(abort_on_interrupt "$?")"
 	cat -- "$log_file" >&2
-
 
 	if grep --quiet 'status of 429' -- "$log_file"; then
 		handler_screenshot_log_failure "$url" "HTTP 429" "$log_file"
@@ -240,6 +242,8 @@ handler_make_screenshot_with_shot_scraper() {
 		[[ -f "$output_directory" ]] && rm --force -- "$output_directory"
 		return "$status"
 	fi
+
+	__success "shot-scraper finished %s" "$url"
 
 	return 0
 }

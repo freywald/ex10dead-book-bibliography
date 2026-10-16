@@ -141,6 +141,9 @@ handler_wget_text_download() {
 		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || return $?
 		return 0
 	fi
+
+	__success "wget-text finished %s" "$url"
+
 	: >| "$output_directory/SUCCESSFUL_DOWNLOAD"
 	return 0
 }
