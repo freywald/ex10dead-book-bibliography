@@ -130,8 +130,8 @@ load_configuration_file() {
 verify_handler_layout() {
 	local name leaf path gallery_real other_real
 	for name in wget wget-text screenshot singlefile json-to-html; do
-		[[ "${handler_enabled[$name]}" == "true" ]] || continue
-		leaf="${handler_leaf_name[$name]-}"
+		[[ "${handler_enabled["$name"]}" == "true" ]] || continue
+		leaf="${handler_leaf_name["$name"]-}"
 		if [[ -z "$leaf" ]]; then
 			__error "leaf_folder must be set for %s" "$name"
 			return 1
@@ -144,16 +144,16 @@ verify_handler_layout() {
 	fi
 
 	for name in wget wget-text screenshot singlefile json-to-html; do
-		[[ "${handler_enabled[$name]}" == "true" ]] || continue
-		[[ -n "${handler_output_path[$name]-}" ]] || { __error "%s output_path is empty" "$name"; return 1; }
+		[[ "${handler_enabled["$name"]}" == "true" ]] || continue
+		[[ -n "${handler_output_path["$name"]-}" ]] || { __error "%s output_path is empty" "$name"; return 1; }
 	done
 
 	if [[ "${handler_enabled[gallery-dl]}" == "true" ]]; then
 		[[ -n "${handler_output_path[gallery-dl]-}" ]] || { __error "gallery-dl output_path is empty"; return 1; }
 		gallery_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[gallery-dl]}")" || { __error "cannot resolve gallery-dl output_path"; return 1; }
 		for name in wget wget-text screenshot singlefile json-to-html; do
-			[[ "${handler_enabled[$name]}" == "true" ]] || continue
-			other_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[$name]}")" || { __error "cannot resolve %s output_path" "$name"; return 1; }
+			[[ "${handler_enabled["$name"]}" == "true" ]] || continue
+			other_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path["$name"]}")" || { __error "cannot resolve %s output_path" "$name"; return 1; }
 			if [[ "$gallery_real" == "$other_real" ]]; then
 				__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
 				return 1

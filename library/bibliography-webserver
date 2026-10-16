@@ -135,9 +135,9 @@ function bibliography_webserver() {
 	found_url="${found_url-}"
 
 	entry_zip="$archive_path/$given_url_identifier.zip"
-	work_dir="$archive_path/$given_url_identifier"
+	work_directory="$archive_path/$given_url_identifier"
 
-	extra_zips=( "$work_dir"/*.zip )
+	extra_zips=( "$work_directory"/*.zip )
 
 	declare -a configuration_arguments=()
 	for configuration_file in "${configuration_files[@]}"; do

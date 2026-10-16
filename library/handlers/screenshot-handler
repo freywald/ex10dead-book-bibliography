@@ -15,6 +15,8 @@ screenshot_reply_count=3
 
 # script task start
 
+handler_screenshot_sourced=true
+
 handler_screenshot_parse_arguments() {
 	local -a arguments=()
 	while (($# > 0)); do
@@ -62,16 +64,16 @@ handler_screenshot_parse_arguments() {
 handler_screenshot_backup_file() {
 	local file="$1"
 	[[ -f "$file" ]] || return 0
-	local hash ext name dest backup_dir status=0
+	local hash ext name dest backup_directory status=0
 
 	hash="$(sha256sum -- "$file" | awk '{print $1}')"
     [[ -n "$hash" ]] || return 1
 
 	ext="${file##*.}"
 	name="$hash.$ext.zip"
-	backup_dir="$(dirname -- "$(dirname -- "$file")")/__backups"
-	mkdir --parents -- "$backup_dir"
-	dest="$backup_dir/$name"
+	backup_directory="$(dirname -- "$(dirname -- "$file")")/__backups"
+	mkdir --parents -- "$backup_directory"
+	dest="$backup_directory/$name"
 	if [[ -f "$dest" ]]; then
 		zip --test -- "$dest" >"/dev/null" 2>&1 && return 0
 	fi

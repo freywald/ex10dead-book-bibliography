@@ -2,6 +2,8 @@
 
 source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/load-configuration" || exit 1
 
+# script start
+
 load_handler() {
 	local file="$1"
 	source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/$file" || exit 1
@@ -17,12 +19,13 @@ archive_relative() {
 	while [[ "$path" == *//* ]]; do
 		path="${path//\/\//\/}"
 	done
+
 	printf '%s\n' "$path"
 }
 
 handler_base_path() {
 	local name="$1"
-	local configured="${handler_output_path[$name]-}"
+	local configured="${handler_output_path["$name"]-}"
 	if [[ -n "$configured" ]]; then
 		if [[ "$configured" == /* ]]; then
 			printf '%s\n' "$configured"
@@ -31,8 +34,9 @@ handler_base_path() {
 		fi
 		return 0
 	fi
+
 	case "$name" in
-		gallery-dl) printf '%s\n' "$archive_path/$gallerydl_dump_directory_name" ;;
+		"gallery-dl") printf '%s\n' "$archive_path/$gallerydl_dump_directory_name" ;;
 		*) printf '%s\n' "$archive_path/$web_archive_directory_name" ;;
 	esac
 }
@@ -56,6 +60,7 @@ archive_status_etag_note() {
 	else
 		etag_note="no-etag"
 	fi
+
 	if ! $zip_ok; then
 		remote_note="download/$etag_note"
 	elif (( remote_mtime > 0 )) && (( remote_mtime <= local_mtime + 60 )); then
@@ -69,31 +74,33 @@ archive_status_etag_note() {
 	else
 		remote_note="no-last-modified/$etag_note"
 	fi
+
 	printf '%s\n' "$remote_note"
 }
 
-handler_id_dir() {
+handler_id_directory() {
 	local name="$1" id="$2" base
 	base="$(handler_base_path "$name")"
 	printf '%s\n' "$base/$id"
 }
 
-handler_leaf_dir() {
-	local name="$1" id="$2" leaf id_dir
-	if [[ -z "${handler_leaf_name[$name]+set}" ]]; then
+handler_leaf_directory() {
+	local name="$1" id="$2" leaf id_directory
+	if [[ -z "${handler_leaf_name["$name"]+set}" ]]; then
 		if [[ "$name" == "gallery-dl" ]]; then
 			leaf=""
 		else
 			leaf="$name"
 		fi
 	else
-		leaf="${handler_leaf_name[$name]}"
+		leaf="${handler_leaf_name["$name"]}"
 	fi
-	id_dir="$(handler_id_dir "$name" "$id")"
+
+	id_directory="$(handler_id_directory "$name" "$id")"
 	if [[ -n "$leaf" ]]; then
-		printf '%s\n' "$id_dir/$leaf"
+		printf '%s\n' "$id_directory/$leaf"
 	else
-		printf '%s\n' "$id_dir"
+		printf '%s\n' "$id_directory"
 	fi
 }
 
@@ -102,17 +109,18 @@ archive_zip_path() {
 	local id="$2"
 	local url_kind="$3"
 	local handler="${4:-wget}"
-	local leaf_dir zip_archive url_pretty
-	leaf_dir="$(handler_leaf_dir "$handler" "$id")"
+	local leaf_directory zip_archive url_pretty
+	leaf_directory="$(handler_leaf_directory "$handler" "$id")"
 	if [[ "$url_kind" == "entry" ]]; then
-		zip_archive="$leaf_dir/$(basename -- "$id").zip"
+		zip_archive="$leaf_directory/$(basename -- "$id").zip"
 	elif [[ "$url_kind" == "field" || "$url_kind" == "attribute-field" ]]; then
 		url_pretty="$(sanitize_url_for_dirname "$url")"
-		zip_archive="$leaf_dir/$url_pretty.zip"
+		zip_archive="$leaf_directory/$url_pretty.zip"
 	else
 		__error "unknown url kind %s" "$url_kind"
 		return 1
 	fi
+
 	realpath --canonicalize-missing -- "$zip_archive"
 }
 
@@ -124,26 +132,31 @@ twitter_status_id() {
 }
 
 handler_gallerydl_warn_extra_json() {
-	local dir="$1" expected="$2" f base
-	[[ -d "$dir" ]] || return 0
-	for f in "$dir"/*.json "$dir"/*.JSON; do
-		[[ -f "$f" ]] || continue
+	local directory="$1" expected="$2" f base
+	[[ ! -d "$directory" ]] && return 0
+
+	for f in "$directory"/*.json "$directory"/*.JSON; do
+		[[ ! -f "$f" ]] && continue
+
 		base="$(basename -- "$f")"
 		[[ "$base" == "$expected" ]] && continue
-		__warn "extra json in %s: %s (expected %s; quoted tweets have their own directory)" "$dir" "$base" "$expected"
+		__warn "extra json in %s: %s (expected %s; quoted tweets have their own directory)" "$directory" "$base" "$expected"
 	done
 }
 
 gallerydl_json_for_url() {
-	local url="$1" tweet_id id_path dir json
+	local url="$1" tweet_id id_path directory json
 	tweet_id="$(twitter_status_id "$url")"
-	[[ -n "$tweet_id" ]] || return 1
-	id_path="${queued_ids[$url]-}"
-	[[ -n "$id_path" ]] || return 1
-	dir="$(handler_leaf_dir "gallery-dl" "$id_path")"
-	json="$dir/$tweet_id.json"
-	handler_gallerydl_warn_extra_json "$dir" "$tweet_id.json"
-	[[ -f "$json" ]] || return 1
+	[[ -z "$tweet_id" ]] && return 1
+
+	id_path="${queued_ids["$url"]-}"
+	[[ -z "$id_path" ]] && return 1
+
+	directory="$(handler_leaf_directory "gallery-dl" "$id_path")"
+	json="$directory/$tweet_id.json"
+	handler_gallerydl_warn_extra_json "$directory" "$tweet_id.json"
+	[[ ! -f "$json" ]] && return 1
+
 	printf '%s\n' "$json"
 }
 

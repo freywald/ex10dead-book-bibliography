@@ -8,6 +8,8 @@ wget_text_output_as_zip=true
 
 # script task start
 
+handler_wget_text_sourced=true
+
 handler_wget_text_parse_arguments() {
 	local -a arguments=()
 	while (($# > 0)); do
@@ -49,10 +51,10 @@ handler_wget_text_backup() {
 	found="$(find "$directory" -mindepth 1 -print -quit)" || return $?
 	[[ -n "$found" ]] || return 0
 
-	local backup_dir stamp dest others=false f base
-	backup_dir="$(dirname -- "$directory")/__backups"
-	[[ "$(basename -- "$directory")" == "__backups" ]] && backup_dir="$(dirname -- "$directory")/../__backups"
-	mkdir --parents -- "$backup_dir"
+	local backup_directory stamp dest others=false f base
+	backup_directory="$(dirname -- "$directory")/__backups"
+	[[ "$(basename -- "$directory")" == "__backups" ]] && backup_directory="$(dirname -- "$directory")/../__backups"
+	mkdir --parents -- "$backup_directory"
 	stamp="$(date +%d-%m-%Y-%H-%M-%S)"
 	if [[ -n "$expected_zip" && -f "$expected_zip" ]]; then
 		for f in "$directory"/*; do
@@ -63,10 +65,10 @@ handler_wget_text_backup() {
 			break
 		done
 		if ! $others; then
-			dest="$backup_dir/$(basename -- "$expected_zip" .zip)-$stamp.zip"
+			dest="$backup_directory/$(basename -- "$expected_zip" .zip)-$stamp.zip"
 			local i=1
 			while [[ -e "$dest" ]]; do
-				dest="$backup_dir/$(basename -- "$expected_zip" .zip)-${stamp}_$i.zip"
+				dest="$backup_directory/$(basename -- "$expected_zip" .zip)-${stamp}_$i.zip"
 				i=$((i + 1))
 			done
 
@@ -78,10 +80,10 @@ handler_wget_text_backup() {
 		fi
 		__warn "expected zip %s is mixed with other files; packing the directory" "$expected_zip"
 	fi
-	dest="$backup_dir/wget-text-$stamp.zip"
+	dest="$backup_directory/wget-text-$stamp.zip"
 	local i=1
 	while [[ -e "$dest" ]]; do
-		dest="$backup_dir/wget-text-${stamp}_$i.zip"
+		dest="$backup_directory/wget-text-${stamp}_$i.zip"
 		i=$((i + 1))
 	done
 	dest="$(realpath --canonicalize-missing -- "$dest")"

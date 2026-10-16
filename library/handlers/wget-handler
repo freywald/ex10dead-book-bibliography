@@ -6,6 +6,8 @@
 
 # script task start
 
+handler_wget_sourced=true
+
 handler_wget_parse_arguments() {
 	local -a arguments=()
 	while (($# > 0)); do
@@ -50,7 +52,7 @@ function handler_wget_download() {
 
 	backup_existing_archive=false
 
-	local work_dir="$directory"
+	local work_directory="$directory"
 	local zip_archive
 	zip_archive="$(archive_zip_path "$url" "$url_identifier" "$url_kind" wget)"
 	directory="$temporary_files_path/$(date +%s)-wget/$(basename -- "$url_identifier")"
@@ -334,12 +336,12 @@ function handler_wget_download() {
 	ln -nfs -- "files/$(basename -- "$file")" "$directory/index.html"
 
 	if $backup_existing_archive && [[ -f "$zip_archive" ]]; then
-		local backup_dir backup_name
-		backup_dir="$(dirname -- "$(dirname -- "$zip_archive")")/__backups"
-		mkdir --parents -- "$backup_dir"
+		local backup_directory backup_name
+		backup_directory="$(dirname -- "$(dirname -- "$zip_archive")")/__backups"
+		mkdir --parents -- "$backup_directory"
 		backup_name="$(basename -- "$zip_archive" ".zip").$(date -d "@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
-		mv -- "$zip_archive" "$backup_dir/$backup_name"
-		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_dir/${backup_name%.zip}.etag"
+		mv -- "$zip_archive" "$backup_directory/$backup_name"
+		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_directory/${backup_name%.zip}.etag"
 	fi
 
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
