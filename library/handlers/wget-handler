@@ -66,8 +66,8 @@ function handler_wget_download() {
 	local headers=""
 	local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 	[[ -n "${wget_cookie_file-}" && -f "$wget_cookie_file" ]] && curl_args+=(--cookie "$wget_cookie_file")
-	headers="$(curl "${curl_args[@]}" -- "$url")" || status=$?
-	abort_on_interrupt "$status"
+	headers="$(curl "${curl_args[@]}" -- "$url")" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		headers=""
 	fi
@@ -99,8 +99,8 @@ function handler_wget_download() {
 	remote_mtime=0
 	local status=0
 	if [[ -n "$last_modified" ]]; then
-		remote_mtime="$(date -d "$last_modified" "+%s")" || status=$?
-		abort_on_interrupt "$status"
+		remote_mtime="$(date -d "$last_modified" "+%s")" || status="$(abort_on_interrupt "$?")"
+
 		if (( status != 0 )); then
 			__error "bad Last-Modified %s" "$last_modified"
 			return "$status"
@@ -110,8 +110,8 @@ function handler_wget_download() {
 	local_mtime=0
 	status=0
 	if [[ -f "$zip_archive" ]]; then
-		local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status=$?
-		abort_on_interrupt "$status"
+		local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status="$(abort_on_interrupt "$?")"
+
 		if (( status != 0 )); then
 			__error "cannot stat %s" "$zip_archive"
 			return "$status"
@@ -176,8 +176,8 @@ function handler_wget_download() {
 		[[ -n "${wget_limit_rate-}" ]] || limit_rate="200k"
 	fi
 
-	wget --header="Accept: text/html" --wait="$wait_seconds" --random-wait --limit-rate="$limit_rate" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status=$?
-	abort_on_interrupt "$status"
+	wget --header="Accept: text/html" --wait="$wait_seconds" --random-wait --limit-rate="$limit_rate" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		return "$status"
 	fi

@@ -23,15 +23,6 @@ declare -gA handler_leaf_name=()
 
 # script task start
 
-abort_on_interrupt() {
-	local status="${1:-$?}"
-	if (( status == 130 || status == 143 )); then
-		exit "$status"
-	fi
-
-	return 0
-}
-
 apply_configuration_enables() {
 	verify_handler_layout
 
@@ -111,6 +102,7 @@ print_archive_status() {
 	local wget_text_existing=0 wget_text_missing=0
 	local reconstruct_existing=0 reconstruct_missing=0
 	local url_count=0
+	local shown=0
 
 	for queued_url in "${!queued_urls[@]}"; do
 		url_count=$((url_count + 1))||:
@@ -202,8 +194,8 @@ print_archive_status() {
 		if $probe && $archive_run_wget; then
 			local -a curl_args=(--silent --head --location --write-out "%{http_code}" --max-time 10)
 			[[ -n "${gallery_dl_cookie_file-}" && -f "$gallery_dl_cookie_file" ]] && curl_args+=(--cookie "$gallery_dl_cookie_file")
-			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || status=$?
-			abort_on_interrupt "$status"
+			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || status="$(abort_on_interrupt "$?")"
+
 			if (( status != 0 )); then
 				headers=""
 			fi
@@ -223,8 +215,8 @@ print_archive_status() {
 				remote_mtime=0
 				local status=0
 				if [[ -n "$last_modified" ]]; then
-					remote_mtime="$(date -d "$last_modified" "+%s")" || status=$?
-					abort_on_interrupt "$status"
+					remote_mtime="$(date -d "$last_modified" "+%s")" || status="$(abort_on_interrupt "$?")"
+
 					if (( status != 0 )); then
 						__error "bad Last-Modified %s" "$last_modified"
 						return "$status"
@@ -234,8 +226,8 @@ print_archive_status() {
 				local_mtime=0
 				status=0
 				if [[ -f "$zip_archive" ]]; then
-					local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status=$?
-					abort_on_interrupt "$status"
+					local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status="$(abort_on_interrupt "$?")"
+
 					if (( status != 0 )); then
 						__error "cannot stat %s" "$zip_archive"
 						return "$status"
@@ -263,6 +255,8 @@ print_archive_status() {
 		fi
 
 		status_wanted "$zip_ok" "$singlefile_ok" "$screenshot_ok" "$gallerydl_ok" "$remote_note" "$wget_text_ok" "$reconstruct_ok" || continue
+
+		shown="$((shown + 1))" ||:
 
 		__heading "%s" "$queued_url"
 
@@ -339,6 +333,12 @@ print_archive_status() {
 			printf '['"$reconstruct_color"'%s'"${COLOR_RESET1}"']\n\tthread-html:\t%s\n' "${reconstruct_status^^}" "$reconstruct_display"
 		fi
 	done
+
+	if (( shown == 0 )) && { $show_missing || $show_missing_wget || $show_missing_singlefile \
+		|| $show_missing_screenshot || $show_missing_gallerydl || $show_missing_wget_text \
+		|| $show_missing_thread_html || $show_missing_download; }; then
+		__info "no missing entries"
+	fi
 
 	__heading "Archive status"
 	__info "urls %s" "$url_count"
@@ -936,21 +936,28 @@ function bibliography_archive(){
 			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--status-updated" ]]; then
+			archive_status=true
 			archive_update_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-archived" ]]; then
+			archive_status=true
 			show_archived=true; shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing" ]]; then
+			archive_status=true
 			show_missing=true; shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-wget" ]]; then
+			archive_status=true
 			show_missing_wget=true; shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-singlefile" ]]; then
+			archive_status=true
 			show_missing_singlefile=true; shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-download" ]]; then
+			archive_status=true
 			show_missing_download=true
 			archive_update_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing*" || "$1" == "--show-missing-all" ]]; then
+			archive_status=true
 			show_missing=true
 			show_missing_wget=true
 			show_missing_singlefile=true
@@ -963,6 +970,7 @@ function bibliography_archive(){
 			shift || __expression_may_fail
 		elif [[ "$1" == "--force-update-existing" ]]; then
 			force_update_existing=true
+			update_archive=true
 			shift ||__expression_may_fail
 		elif [[ "$1" == "--archive-id" ]]; then
 			if [[ -z "${2-}" || "$2" == --* ]]; then
@@ -971,6 +979,7 @@ function bibliography_archive(){
 			fi
 			filter_by_id="$2"
 			force_update_existing=true
+			update_archive=true
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--archive-id="* ]]; then
 			filter_by_id="${1#--archive-id=}"
@@ -980,6 +989,7 @@ function bibliography_archive(){
 			fi
 			update_archive=true
 			force_update_existing=true
+			update_archive=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--archive-wget-id" ]]; then
 			if [[ -z "${2-}" || "$2" == --* ]]; then
@@ -993,6 +1003,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=false
 			archive_run_gallerydl=false
 			force_update_existing=true
+			update_archive=true
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--archive-wget-id="* ]]; then
 			filter_by_id="${1#--archive-wget-id=}"
@@ -1006,6 +1017,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=false
 			archive_run_gallerydl=false
 			force_update_existing=true
+			update_archive=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--archive-singlefile-id" ]]; then
 			if [[ -z "${2-}" || "$2" == --* ]]; then
@@ -1019,6 +1031,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=false
 			archive_run_gallerydl=false
 			force_update_existing=true
+			update_archive=true
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--archive-singlefile-id="* ]]; then
 			filter_by_id="${1#--archive-singlefile-id=}"
@@ -1032,6 +1045,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=false
 			archive_run_gallerydl=false
 			force_update_existing=true
+			update_archive=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--select-id" ]]; then
 			if [[ -z "${2-}" || "$2" == --* ]]; then
@@ -1059,6 +1073,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=true
 			archive_run_gallerydl=false
 			force_update_existing=true
+			update_archive=true
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--archive-screenshot-id="* ]]; then
 			filter_by_id="${1#--archive-screenshot-id=}"
@@ -1072,6 +1087,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=true
 			archive_run_gallerydl=false
 			force_update_existing=true
+			update_archive=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--archive-gallerydl-id" ]]; then
 			if [[ -z "${2-}" || "$2" == --* ]]; then
@@ -1085,6 +1101,7 @@ function bibliography_archive(){
 			archive_run_make_screenshot=false
 			archive_run_gallerydl=true
 			force_update_existing=true
+			update_archive=true
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--archive-gallerydl-id="* ]]; then
 			filter_by_id="${1#--archive-gallerydl-id=}"
@@ -1098,18 +1115,23 @@ function bibliography_archive(){
 			archive_run_make_screenshot=false
 			archive_run_gallerydl=true
 			force_update_existing=true
+			update_archive=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-gallerydl" ]]; then
 			show_missing_gallerydl=true
+			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-screenshot" ]]; then
 			show_missing_screenshot=true
+			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-wget-text" ]]; then
 			show_missing_wget_text=true
+			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing-thread-html" ]]; then
 			show_missing_thread_html=true
+			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--configuration-file" ]]; then
 			[[ -n "${2-}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
@@ -1154,6 +1176,7 @@ function bibliography_archive(){
 				fi
 				archive_url_filter="$1"
 				force_update_existing=true
+				update_archive=true
 				shift || __expression_may_fail
 			fi
 		fi

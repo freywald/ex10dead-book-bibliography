@@ -52,8 +52,8 @@ handler_gallerydl_tweet_complete() {
 		| map(select(type == "object" and (.type == "photo" or .type == "video" or .type == "animated_gif" or .type == "image")))
 		| unique_by(.id_str // .media_key // .media_url_https // .url)
 		| length
-	' -- "$json")" || status=$?
-	abort_on_interrupt "$status"
+	' -- "$json")" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		return "$status"
 	fi
@@ -80,8 +80,8 @@ handler_gallerydl_backup_file() {
 	[[ ! -f "$file" ]] && return 0
 
 	local hash ext name dest status=0
-	hash="$(sha256sum -- "$file" | awk '{print $1}')" || status=$?
-	abort_on_interrupt "$status"
+	hash="$(sha256sum -- "$file" | awk '{print $1}')" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		return "$status"
 	fi
@@ -92,13 +92,12 @@ handler_gallerydl_backup_file() {
 	mkdir --parents -- "$backup_directory"
 	dest="$backup_directory/$name"
 	if [[ -f "$dest" ]]; then
-		zip --test -- "$dest" >"/dev/null" 2>&1 && return 0
-		__warn "replacing unreadable hash backup %s" "$dest"
+		return 0
 	fi
 
 	status=0
-	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
-	abort_on_interrupt "$status"
+	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		return "$status"
 	fi
@@ -168,7 +167,12 @@ function handler_gallerydl_download() {
 	local part_directory="$temporary_files_path/$(date +%s)-gallery-dl"
 	mkdir --parents -- "$part_directory"
 
-	gallery-dl --verbose --config-ignore --cookies "$gallery_dl_cookie_file" --mtime-from-date --sleep "${gallerydl_sleep:-20-60}" --sleep-request "${gallerydl_sleep_request:-30-90}" --retries 6 --http-timeout 60.0 --limit-rate 5M --option downloader.mtime=false --option downloader.progress=5.0 --option downloader.part-directory="$part_directory" --option downloader.timeout=60.0 --option downloader.ytdl.module=yt_dlp --option extractor.base-directory="$gallerydl_dump_path/" --option extractor.path-restrict='{"\\":"⧹","/":"⧸","|":"￨",":":"꞉","*":"∗","?":"？","\"":"″","<":"﹤",">":"﹥"}' --option extractor.ytdl.enabled=true --option extractor.ytdl.module=yt_dlp --option extractor.ytdl.generic=false --option extractor.ytdl.config-file="$HOME/.config/yt-dlp/config" --option extractor.twitter.quoted=true --option extractor.twitter.unavailable=true --option extractor.twitter.cards=true --option extractor.twitter.retweets=true --option extractor.twitter.size=orig --option extractor.twitter.text-tweets=true --option extractor.twitter.twitpic=true --option extractor.twitter.directory='["{author[id]|user[id]}","{tweet_id}"]' --postprocessor metadata --postprocessor-option event=post --postprocessor-option filename="{tweet_id}.json" -- "$url" || status=$?
-	abort_on_interrupt "$status"
-	return "${status:-0}"
+	local status=0
+	gallery-dl --verbose --config-ignore --cookies "$gallery_dl_cookie_file" --mtime-from-date --sleep "${gallerydl_sleep:-20-60}" --sleep-request "${gallerydl_sleep_request:-30-90}" --retries 6 --http-timeout 60.0 --limit-rate 5M --option downloader.mtime=false --option downloader.progress=5.0 --option downloader.part-directory="$part_directory" --option downloader.timeout=60.0 --option downloader.ytdl.module=yt_dlp --option extractor.base-directory="$gallerydl_dump_path/" --option extractor.path-restrict='{"\\":"⧹","/":"⧸","|":"￨",":":"꞉","*":"∗","?":"？","\"":"″","<":"﹤",">":"﹥"}' --option extractor.ytdl.enabled=true --option extractor.ytdl.module=yt_dlp --option extractor.ytdl.generic=false --option extractor.ytdl.config-file="$HOME/.config/yt-dlp/config" --option extractor.twitter.quoted=true --option extractor.twitter.unavailable=true --option extractor.twitter.cards=true --option extractor.twitter.retweets=true --option extractor.twitter.size=orig --option extractor.twitter.text-tweets=true --option extractor.twitter.twitpic=true --option extractor.twitter.directory='["{author[id]|user[id]}","{tweet_id}"]' --postprocessor metadata --postprocessor-option event=post --postprocessor-option filename="{tweet_id}.json" -- "$url" || status="$(abort_on_interrupt "$?")"
+
+	if (( status == 0 )); then
+		__success "gallery-dl finished %s" "$url"
+	fi
+
+	return "$status"
 }

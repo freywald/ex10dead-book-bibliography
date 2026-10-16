@@ -64,7 +64,7 @@ handler_screenshot_parse_arguments() {
 handler_screenshot_backup_file() {
 	local file="$1"
 	[[ -f "$file" ]] || return 0
-	local hash ext name dest backup_directory status=0
+	local hash ext name dest backup_directory
 
 	hash="$(sha256sum -- "$file" | awk '{print $1}')"
     [[ -n "$hash" ]] || return 1
@@ -74,11 +74,14 @@ handler_screenshot_backup_file() {
 	backup_directory="$(dirname -- "$(dirname -- "$file")")/__backups"
 	mkdir --parents -- "$backup_directory"
 	dest="$backup_directory/$name"
+
 	if [[ -f "$dest" ]]; then
-		zip --test -- "$dest" >"/dev/null" 2>&1 && return 0
+		return 0
 	fi
-	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status=$?
-	abort_on_interrupt "$status"
+
+	local status=0
+	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		return "$status"
 	fi
@@ -222,9 +225,9 @@ handler_make_screenshot_with_shot_scraper() {
 	} >| "$js_file"
 
 	mkdir --parents -- "$(dirname -- "$output_directory")"
-	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$js_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status=$?
+	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$js_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status="$(abort_on_interrupt "$?")"
 	cat -- "$log_file" >&2
-	abort_on_interrupt "$status"
+
 
 	if grep --quiet 'status of 429' -- "$log_file"; then
 		handler_screenshot_log_failure "$url" "HTTP 429" "$log_file"

@@ -129,8 +129,8 @@ handler_wget_text_download() {
 		done < "$wget_text_arguments_file"
 	fi
 	args+=("${wget_text_arguments[@]}")
-	wget "${args[@]}" --directory-prefix="$output_directory" --domains="$domain" -- "$url" || status=$?
-	abort_on_interrupt "$status"
+	wget "${args[@]}" --directory-prefix="$output_directory" --domains="$domain" -- "$url" || status="$(abort_on_interrupt "$?")"
+
 	if (( status != 0 )); then
 		handler_wget_text_backup "$work" || { __warn "wget-text backup failed for %s" "$url"; return $?; }
 		return "$status"
