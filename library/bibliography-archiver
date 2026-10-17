@@ -105,7 +105,7 @@ print_archive_status() {
 	local shown=0
 
 	for queued_url in "${!queued_urls[@]}"; do
-		url_count=$((url_count + 1))||:
+		url_count=$((url_count + 1))||__expression_may_fail
 		local id="${queued_ids[$queued_url]}"
 		work_directory="$(handler_id_directory wget "$id")"
 		zip_archive="$(archive_zip_path "$queued_url" "$id" "${queued_kinds[$queued_url]}" wget)"
@@ -173,22 +173,22 @@ print_archive_status() {
 		[[ -f "$wget_text_target" ]] && wget_text_ok=true
 		[[ -f "$reconstruct_file" ]] && reconstruct_ok=true
 		if $archive_run_make_screenshot; then
-			if $screenshot_ok; then screenshot_existing=$((screenshot_existing + 1))||:; else screenshot_missing=$((screenshot_missing + 1))||:; fi
+			if $screenshot_ok; then screenshot_existing=$((screenshot_existing + 1))||__expression_may_fail; else screenshot_missing=$((screenshot_missing + 1))||__expression_may_fail; fi
 		fi
 		if $archive_run_wget; then
-			if $zip_ok; then wget_existing=$((wget_existing + 1))||:; else wget_missing=$((wget_missing + 1))||:; fi
+			if $zip_ok; then wget_existing=$((wget_existing + 1))||__expression_may_fail; else wget_missing=$((wget_missing + 1))||__expression_may_fail; fi
 		fi
 		if $archive_run_singlefile; then
-			if $singlefile_ok; then singlefile_existing=$((singlefile_existing + 1))||:; else singlefile_missing=$((singlefile_missing + 1))||:; fi
+			if $singlefile_ok; then singlefile_existing=$((singlefile_existing + 1))||__expression_may_fail; else singlefile_missing=$((singlefile_missing + 1))||__expression_may_fail; fi
 		fi
 		if $archive_run_gallerydl; then
-			if $gallerydl_ok; then gallerydl_existing=$((gallerydl_existing + 1))||:; else gallerydl_missing=$((gallerydl_missing + 1))||:; fi
+			if $gallerydl_ok; then gallerydl_existing=$((gallerydl_existing + 1))||__expression_may_fail; else gallerydl_missing=$((gallerydl_missing + 1))||__expression_may_fail; fi
 		fi
 		if $archive_run_wget_text; then
-			if $wget_text_ok; then wget_text_existing=$((wget_text_existing + 1))||:; else wget_text_missing=$((wget_text_missing + 1))||:; fi
+			if $wget_text_ok; then wget_text_existing=$((wget_text_existing + 1))||__expression_may_fail; else wget_text_missing=$((wget_text_missing + 1))||__expression_may_fail; fi
 		fi
 		if $archive_run_json_to_html; then
-			if $reconstruct_ok; then reconstruct_existing=$((reconstruct_existing + 1))||:; else reconstruct_missing=$((reconstruct_missing + 1))||:; fi
+			if $reconstruct_ok; then reconstruct_existing=$((reconstruct_existing + 1))||__expression_may_fail; else reconstruct_missing=$((reconstruct_missing + 1))||__expression_may_fail; fi
 		fi
 
 		if $probe && $archive_run_wget; then
@@ -207,11 +207,11 @@ print_archive_status() {
 			elif [[ "$http_status" != 2* ]]; then
 				remote_note="http ${http_status}"
 			else
-				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||:; } | head -1 | cut -d: -f2-)"
+				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||__expression_may_fail; } | head -1 | cut -d: -f2-)"
 				last_modified="${last_modified-}"
 				last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 				last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
-				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||:; } | head -1 | cut -d: -f2- | tr -d '\" ')"
+				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||__expression_may_fail; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 				remote_mtime=0
 				local status=0
 				if [[ -n "$last_modified" ]]; then
@@ -256,7 +256,7 @@ print_archive_status() {
 
 		status_wanted "$zip_ok" "$singlefile_ok" "$screenshot_ok" "$gallerydl_ok" "$remote_note" "$wget_text_ok" "$reconstruct_ok" || continue
 
-		shown="$((shown + 1))" ||:
+		shown="$((shown + 1))" ||__expression_may_fail
 
 		__heading "%s" "$queued_url"
 
@@ -375,7 +375,7 @@ print_archive_status() {
 
 	__info "scanning archive trees for orphans"
 	while IFS= read -r -d '' file; do
-		scanned=$((scanned + 1))||:
+		scanned=$((scanned + 1))||__expression_may_fail
 		if (( scanned % 2000 == 0 )); then
 			__info "orphan scan %s paths" "$scanned"
 		fi
@@ -524,7 +524,7 @@ function manage_archive_for_url() {
 		handler_make_screenshot_with_shot_scraper "$url" "$screenshot_path" || screenshot_status=$?
 		if (( screenshot_status == 130 || screenshot_status == 143 )); then exit "$screenshot_status"; fi
 		if (( screenshot_status == 0 )) && ! $screenshot_existed; then
-			local screenshot_pause=$((5 + RANDOM % 10))||:
+			local screenshot_pause=$((5 + RANDOM % 10))||__expression_may_fail
 			__info "waiting %s seconds before the next screenshot" "$screenshot_pause"
 			sleep "$screenshot_pause"
 		fi

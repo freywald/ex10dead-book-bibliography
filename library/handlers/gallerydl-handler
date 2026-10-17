@@ -35,6 +35,16 @@ handler_gallerydl_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
+handler_gallerydl_log_failure() {
+	local url="$1" filename="$2" reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+}
+
 handler_gallerydl_tweet_complete() {
 	local directory="$1" json="$2" media_count files=0 tweet_id status=0
 	[[ ! -f "$json" ]] && return 1
@@ -69,7 +79,7 @@ handler_gallerydl_tweet_complete() {
 		case "$f" in
 			*.part|*.part.*) continue ;;
 		esac
-		files="$((files + 1))" ||:
+		files="$((files + 1))" ||__expression_may_fail
 	done
 
 	(( files >= media_count ))
@@ -172,6 +182,9 @@ function handler_gallerydl_download() {
 
 	if (( status == 0 )); then
 		__success "gallery-dl finished %s" "$url"
+	else
+		handler_gallerydl_log_failure "$url" "$json" "gallery-dl exit $status"
+		__failure "gallery-dl failed for %s" "$url"
 	fi
 
 	return "$status"

@@ -79,7 +79,7 @@ load_configuration_file() {
 		wget_text_arguments=()
 		while IFS= read -r line; do
 			[[ -n "$line" ]] && wget_text_arguments+=("$line")
-		done < <(jq --raw-output '.handlers["wget-text"].arguments[]? // empty' <<<"$json" ||:)
+		done < <(jq --raw-output '.handlers["wget-text"].arguments[]? // empty' <<<"$json" ||__expression_may_fail)
 	fi
 
 	if jq --exit-status '.handlers.singlefile | has("wait_until")' <<<"$json" >"/dev/null"; then

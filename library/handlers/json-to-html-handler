@@ -23,6 +23,16 @@ handler_json_to_html_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
+handler_json_to_html_log_failure() {
+	local url="$1" filename="$2" reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+}
+
 handler_json_to_html_escape() {
 	local text="$1"
 	text="${text//&/&amp;}"
@@ -153,7 +163,7 @@ handler_json_to_html_backup() {
 	local i=1
 	while [[ -e "$dest" ]]; do
 		dest="$backup_directory/json-to-html-${mtime}_$i.zip"
-		i="$((i + 1))" ||:
+		i="$((i + 1))" ||__expression_may_fail
 	done
 	dest="$(realpath --canonicalize-missing -- "$dest")"
 	local -a files=()
@@ -257,6 +267,14 @@ handler_json_to_html_reconstruct() {
 		printf '%s\n' "$current" >| "$next_manifest"
 		handler_json_to_html_backup "$output" "$manifest"
 		handler_json_to_html_render_group "$tweet_id" "$output"
+		if [[ ! -f "$output" ]]; then
+			local tweet_url
+			tweet_url="$(jq -r '.url // .tweet_url // empty' -- "$json")"
+			[[ -n "$tweet_url" ]] || tweet_url="tweet $tweet_id"
+			handler_json_to_html_log_failure "$tweet_url" "$output" "render produced no file"
+			__failure "json-to-html failed for %s" "$tweet_url"
+			continue
+		fi
 		mv -f -- "$next_manifest" "$manifest"
 		__info "Wrote reconstructed thread %s" "$output"
 		__success "json-to-html finished %s" "$output"

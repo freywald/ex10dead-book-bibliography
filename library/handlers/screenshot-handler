@@ -62,6 +62,24 @@ handler_screenshot_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
+handler_screenshot_log_failure() {
+	local url="$1" reason="$2" tool_log="$3" output_path="$4" json_path
+	json_path="$(gallerydl_json_for_url "$url")" || json_path=""
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$output_path"
+		printf 'json: %s\n' "$json_path"
+		printf 'reason: %s\n' "$reason"
+		printf '%s\n' '--- shot-scraper ---'
+		[[ -f "$tool_log" ]] && cat -- "$tool_log"
+		printf '\n'
+	} >> "$run_error_log"
+	if [[ -n "$json_path" ]] && ! grep --quiet --line-regexp --fixed-strings -- "$json_path" "$run_missing_screenshots_log"; then
+		printf '%s\n' "$url" >> "$run_missing_screenshots_log"
+		printf '%s\n\n' "$json_path" >> "$run_missing_screenshots_log"
+	fi
+}
+
 handler_screenshot_backup_file() {
 	local file="$1"
 	[[ -f "$file" ]] || return 0
@@ -232,13 +250,14 @@ handler_make_screenshot_with_shot_scraper() {
 	cat -- "$log_file" >&2
 
 	if grep --quiet 'status of 429' -- "$log_file"; then
-		handler_screenshot_log_failure "$url" "HTTP 429" "$log_file"
-		__warn "HTTP 429 while screenshotting %s, screenshot file not kept" "$url"
+		handler_screenshot_log_failure "$url" "HTTP 429" "$log_file" "$output_directory"
+		__failure "HTTP 429 while screenshotting %s, screenshot file not kept" "$url"
 		[[ -f "$output_directory" ]] && rm --force -- "$output_directory"
 		return 75
 	fi
 	if (( status != 0 )); then
-		handler_screenshot_log_failure "$url" "shot-scraper exit $status" "$log_file"
+		handler_screenshot_log_failure "$url" "shot-scraper exit $status" "$log_file" "$output_directory"
+		__failure "shot-scraper failed for %s" "$url"
 		[[ -f "$output_directory" ]] && rm --force -- "$output_directory"
 		return "$status"
 	fi

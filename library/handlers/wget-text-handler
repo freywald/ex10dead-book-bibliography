@@ -43,6 +43,16 @@ handler_wget_text_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
+handler_wget_text_log_failure() {
+	local url="$1" filename="$2" reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+}
+
 handler_wget_text_backup() {
 	local directory="$1" expected_zip="${2-}"
 	[[ -d "$directory" ]] || return 0
@@ -69,7 +79,7 @@ handler_wget_text_backup() {
 			local i=1
 			while [[ -e "$dest" ]]; do
 				dest="$backup_directory/$(basename -- "$expected_zip" .zip)-${stamp}_$i.zip"
-				i=$((i + 1))||:
+				i=$((i + 1))||__expression_may_fail
 			done
 
 			mv -- "$expected_zip" "$dest"
@@ -84,7 +94,7 @@ handler_wget_text_backup() {
 	local i=1
 	while [[ -e "$dest" ]]; do
 		dest="$backup_directory/wget-text-${stamp}_$i.zip"
-		i=$((i + 1))||:
+		i=$((i + 1))||__expression_may_fail
 	done
 	dest="$(realpath --canonicalize-missing -- "$dest")"
 	__info "Writing backup zip %s" "$dest"
@@ -133,12 +143,20 @@ handler_wget_text_download() {
 
 	if (( status != 0 )); then
 		handler_wget_text_backup "$work" || { __warn "wget-text backup failed for %s" "$url"; return $?; }
+		handler_wget_text_log_failure "$url" "$expected_zip" "wget exit $status"
+		__failure "wget-text failed for %s" "$url"
 		return "$status"
 	fi
 
 	if $wget_text_output_as_zip; then
 		mkdir --parents -- "$(dirname -- "$expected_zip")"
-		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || return $?
+		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || status="$(abort_on_interrupt "$?")"
+		if (( status != 0 )); then
+			handler_wget_text_log_failure "$url" "$expected_zip" "zip exit $status"
+			__failure "wget-text failed for %s" "$url"
+			return "$status"
+		fi
+		__success "wget-text finished %s" "$url"
 		return 0
 	fi
 

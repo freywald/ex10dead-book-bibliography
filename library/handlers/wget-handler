@@ -37,6 +37,16 @@ handler_wget_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
+handler_wget_log_failure() {
+	local url="$1" filename="$2" reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+}
+
 handler_wget_is_html_document() {
 	local mime
 	mime="$(file -b --mime-type -- "$1")"
@@ -90,11 +100,11 @@ function handler_wget_download() {
 	__debug "$url"
 	__debug "$headers"
 
-	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||:; } | head -1 | cut -d: -f2-)"
+	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||__expression_may_fail; } | head -1 | cut -d: -f2-)"
 	last_modified="${last_modified-}"
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
-	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||:; } | head -1 | cut -d: -f2- | tr -d '\" ')"
+	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||__expression_may_fail; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 
 	remote_mtime=0
 	local status=0
@@ -179,6 +189,8 @@ function handler_wget_download() {
 	wget --header="Accept: text/html" --wait="$wait_seconds" --random-wait --limit-rate="$limit_rate" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status="$(abort_on_interrupt "$?")"
 
 	if (( status != 0 )); then
+		handler_wget_log_failure "$url" "$zip_archive" "wget exit $status"
+		__failure "wget failed for %s" "$url"
 		return "$status"
 	fi
 
@@ -301,8 +313,9 @@ function handler_wget_download() {
 				__warn "leaving existing archive in place: %s" "$zip_archive"
 				return
 			fi
-			__error "File cannot be downloaded and cannot be archived!"
-			local_exit_failsafe
+			handler_wget_log_failure "$url" "$zip_archive" "could not resolve main HTML"
+			__failure "wget failed for %s" "$url"
+			return 1
 		fi
 	else
 		file="${html_files[0]}"
@@ -316,8 +329,9 @@ function handler_wget_download() {
 			__info "File cannot be downloaded – but is already archived!"
 			return
 		fi
-		__warn "File cannot be downloaded and cannot be archived!"
-		return
+		handler_wget_log_failure "$url" "$zip_archive" "no HTML downloaded"
+		__failure "wget failed for %s" "$url"
+		return 1
 	fi
 
 	sed -i \
@@ -347,7 +361,7 @@ function handler_wget_download() {
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
 	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")"
 	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".")
-	rmdir -- "$directory" ||:
+	rmdir -- "$directory" ||__expression_may_fail
 
 	if (( remote_mtime > 0 )); then
 		touch -d "@$remote_mtime" "$zip_archive"

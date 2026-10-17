@@ -28,6 +28,16 @@ handler_singlefile_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
+handler_singlefile_log_failure() {
+	local url="$1" filename="$2" reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+}
+
 handler_singlefile_backup_file() {
 	local file="$1"
 	[[ -f "$file" ]] || return 0
@@ -77,8 +87,9 @@ function handler_singlefile_download() {
 	mkdir --parents -- "$work"
 	"./$singlefile_library_path/single-file" --browser-cookies-file="$singlefile_cookie_file" --browser-wait-until="${singlefile_wait_until:-networkIdle}" --browser-wait-until-delay=2000 --browser-load-max-time=120000 --remove-hidden-elements=false --remove-unused-styles=false --remove-unused-fonts=false --remove-alternative-fonts=false --remove-alternative-medias=false --remove-alternative-images=false --group-duplicate-images=false --compress-HTML=false --compress-CSS=false --block-scripts=true --block-videos=false --block-audios=false --load-deferred-images=true "$url" "$output_directory" || status="$(abort_on_interrupt "$?")"
 
-
 	if (( status != 0 )); then
+		handler_singlefile_log_failure "$url" "$output_directory" "single-file exit $status"
+		__failure "single-file failed for %s" "$url"
 		return "$status"
 	fi
 
