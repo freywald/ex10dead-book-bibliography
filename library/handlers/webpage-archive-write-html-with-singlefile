@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# configuration start
+
+# configuration end
+
+# script start
+
+handler_webpage_archive_write_html_with_singlefile_sourced=true
+
+handler_webpage_archive_write_html_with_singlefile_parse_arguments() {
+	local -a arguments=()
+	while (($# > 0)); do
+		if [[ "$1" == "--webpage-archive-write-html-with-singlefile-wait-until" ]]; then
+			singlefile_wait_until="${2-}"
+			shift 2 || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-html-with-singlefile-wait-until="* ]]; then
+			singlefile_wait_until="${1#--webpage-archive-write-html-with-singlefile-wait-until=}"
+			shift || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-html-with-singlefile-"* ]]; then
+			__error "unknown webpage-archive-write-html-with-singlefile argument %s" "$1"
+			local_exit_failsafe
+		else
+			arguments+=("$1")
+			shift || __expression_may_fail
+		fi
+	done
+
+	set -- "${arguments[@]}"
+}
+
+handler_webpage_archive_write_html_with_singlefile_log_failure() {
+	local url="$1"
+	local filename="$2"
+	local reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/webpage-archive-write-html-with-singlefile-failed-items.log"
+}
+
+handler_webpage_archive_write_html_with_singlefile_backup_file() {
+	local file="$1"
+	[[ -f "$file" ]] || return 0
+
+	local hash
+	hash="$(sha256sum -- "$file" | awk '{print $1}')" || return $?
+	[[ -z "$hash" ]] && return 1
+
+	local extension="${file##*.}"
+	local name="$hash.$extension.zip"
+	local backup_directory
+	backup_directory="$(backup_directory_for "$file" "$(handler_base_path "webpage-archive-write-html-with-singlefile")" "${handler_leaf_name["webpage-archive-write-html-with-singlefile"]-}")"
+	mkdir --parents -- "$backup_directory"
+	local destination="$backup_directory/$name"
+
+	if [[ -f "$destination" ]]; then
+		return 0
+	fi
+
+	local status=0
+	zip --no-wild --junk-paths --test "$destination" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		return "$status"
+	fi
+
+	__info "Wrote hash backup %s" "$destination"
+
+	return 0
+}
+
+handler_webpage_archive_write_html_with_singlefile_download() {
+	local url="$1"
+	local output_directory="$2"
+	local status=0
+
+	mkdir --parents -- "$(dirname -- "$output_directory")"
+
+	if [[ -f "$output_directory" ]] && ! $force_update_existing; then
+		__verbose "Skipping singlefile %s, file exists" "$output_directory"
+		return 0
+	fi
+
+	__info "Downloading singlefile %s" "$url"
+	status=0
+	handler_webpage_archive_write_html_with_singlefile_backup_file "$output_directory" || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		__warn "singlefile backup failed for %s" "$url"
+		return "$status"
+	fi
+
+	"./$singlefile_library_path/single-file" --browser-cookies-file="$singlefile_cookie_file" --browser-wait-until="${singlefile_wait_until:-networkIdle}" --browser-wait-until-delay=2000 --browser-load-max-time=120000 --remove-hidden-elements=false --remove-unused-styles=false --remove-unused-fonts=false --remove-alternative-fonts=false --remove-alternative-medias=false --remove-alternative-images=false --group-duplicate-images=false --compress-HTML=false --compress-CSS=false --block-scripts=true --block-videos=false --block-audios=false --load-deferred-images=true "$url" "$output_directory" || status="$(abort_on_interrupt "$?")"
+
+	if (( status != 0 )); then
+		handler_webpage_archive_write_html_with_singlefile_log_failure "$url" "$output_directory" "single-file exit $status"
+		return "$status"
+	fi
+
+	return 0
+}

@@ -6,13 +6,13 @@
 
 # script start
 
-handler_json_to_html_sourced=true
+handler_twitter_archive_export_write_conversation_reconstructed_html_sourced=true
 
-handler_json_to_html_parse_arguments() {
+handler_twitter_archive_export_write_conversation_reconstructed_html_parse_arguments() {
 	local -a arguments=()
 	while (($# > 0)); do
-		if [[ "$1" == "--json-to-html-"* ]]; then
-			__error "unknown json-to-html argument %s" "$1"
+		if [[ "$1" == "--twitter-archive-export-write-conversation-reconstructed-html-"* ]]; then
+			__error "unknown twitter-archive-export-write-conversation-reconstructed-html argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
@@ -23,17 +23,20 @@ handler_json_to_html_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
-handler_json_to_html_log_failure() {
-	local url="$1" filename="$2" reason="$3"
+handler_twitter_archive_export_write_conversation_reconstructed_html_log_failure() {
+	local url="$1"
+	local filename="$2"
+	local reason="$3"
 	{
 		printf 'url: %s\n' "$url"
 		printf 'filename: %s\n' "$filename"
 		printf 'reason: %s\n' "$reason"
 		printf '\n'
 	} >> "$run_error_log"
+	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/twitter-archive-export-write-conversation-reconstructed-html-failed-items.log"
 }
 
-handler_json_to_html_escape() {
+handler_twitter_archive_export_write_conversation_reconstructed_html_escape() {
 	local text="$1"
 	text="${text//&/&amp;}"
 	text="${text//</&lt;}"
@@ -42,8 +45,13 @@ handler_json_to_html_escape() {
 	printf '%s' "$text"
 }
 
-handler_json_to_html_media() {
-	local directory="$1" output_directory="$2" path suffix source
+handler_twitter_archive_export_write_conversation_reconstructed_html_media() {
+	local directory="$1"
+	local output_directory="$2"
+	local path
+	local suffix
+	local source
+	local status
 	for path in "$directory"/*; do
 		[[ -f "$path" ]] || continue
 
@@ -53,8 +61,14 @@ handler_json_to_html_media() {
 			"jpg"|"jpeg"|"png"|"webp"|"gif"|"mp4"|"webm") ;;
 			*) continue ;;
 		esac
-		source="$(realpath --relative-to="$output_directory" -- "$path")" || { __warn "relative path failed for %s" "$path"; source="$path"; }
-		source="$(handler_json_to_html_escape "$source")"
+
+		status=0
+		source="$(realpath --relative-to="$output_directory" -- "$path")" || status=$?
+		if (( status != 0 )); then
+			__warn "relative path failed for %s" "$path"
+			source="$path"
+		fi
+		source="$(handler_twitter_archive_export_write_conversation_reconstructed_html_escape "$source")"
 		case "$suffix" in
 			"mp4"|"webm") printf '<video controls src="%s"></video>' "$source" ;;
 			*) printf '<img src="%s" alt="">' "$source" ;;
@@ -62,50 +76,58 @@ handler_json_to_html_media() {
 	done
 }
 
-handler_json_to_html_render_article() {
-	local tweet_id="$1" quoted="${2:-false}" output_directory="$3"
-	local json directory text quote_id kind="tweet"
-	json="${json_of["$tweet_id"]}"
+handler_twitter_archive_export_write_conversation_reconstructed_html_render_article() {
+	local tweet_id="$1"
+	local quoted="${2:-false}"
+	local output_directory="$3"
+	local json="${json_of["$tweet_id"]}"
+	local directory
 	directory="$(dirname -- "$json")"
+	local text
 	text="$(jq -r '.content // .full_text // .text // ""' -- "$json")"
+	local kind="tweet"
 	[[ "$quoted" == "true" ]] && kind="quote"
 	printf '<article class="%s"><header><strong>%s</strong> @%s <time>%s</time></header><p>%s</p>%s' \
 		"$kind" \
-		"$(handler_json_to_html_escape "${name_of["$tweet_id"]}")" \
-		"$(handler_json_to_html_escape "${handle_of["$tweet_id"]}")" \
-		"$(handler_json_to_html_escape "${date_of["$tweet_id"]}")" \
-		"$(handler_json_to_html_escape "$text")" \
-		"$(handler_json_to_html_media "$directory" "$output_directory")"
+		"$(handler_twitter_archive_export_write_conversation_reconstructed_html_escape "${name_of["$tweet_id"]}")" \
+		"$(handler_twitter_archive_export_write_conversation_reconstructed_html_escape "${handle_of["$tweet_id"]}")" \
+		"$(handler_twitter_archive_export_write_conversation_reconstructed_html_escape "${date_of["$tweet_id"]}")" \
+		"$(handler_twitter_archive_export_write_conversation_reconstructed_html_escape "$text")" \
+		"$(handler_twitter_archive_export_write_conversation_reconstructed_html_media "$directory" "$output_directory")"
 
-	quote_id="${quote_of["$tweet_id"]}"
+	local quote_id="${quote_of["$tweet_id"]}"
 	if [[ -n "$quote_id" && "$quote_id" != "0" && -n "${json_of["$quote_id"]:-}" ]]; then
-		handler_json_to_html_render_article "$quote_id" true "$output_directory"
+		handler_twitter_archive_export_write_conversation_reconstructed_html_render_article "$quote_id" true "$output_directory"
 		[[ -n "${embed_only["$quote_id"]:-}" ]] && consumed["$quote_id"]=1
 	fi
 
 	printf '</article>'
 }
 
-handler_json_to_html_render_tree() {
-	local tweet_id="$1" output_directory="$2" child
+handler_twitter_archive_export_write_conversation_reconstructed_html_render_tree() {
+	local tweet_id="$1"
+	local output_directory="$2"
 	[[ -n "${consumed["$tweet_id"]:-}" ]] && return 0
 
-	handler_json_to_html_render_article "$tweet_id" false "$output_directory"
+	handler_twitter_archive_export_write_conversation_reconstructed_html_render_article "$tweet_id" false "$output_directory"
 	consumed["$tweet_id"]=1
 	if [[ -n "${children_of["$tweet_id"]:-}" ]]; then
+		local child
 		while IFS= read -r child; do
 			[[ -z "$child" ]] && continue
-			handler_json_to_html_render_tree "$child" "$output_directory"
+			handler_twitter_archive_export_write_conversation_reconstructed_html_render_tree "$child" "$output_directory"
 		done <<< "${children_of["$tweet_id"]}"
 	fi
 }
 
-handler_json_to_html_render_group() {
-	local root_id="$1" output="$2" output_directory
+handler_twitter_archive_export_write_conversation_reconstructed_html_render_group() {
+	local root_id="$1"
+	local output="$2"
+	local output_directory
 	output_directory="$(dirname -- "$output")"
 	{
 		printf '%s\n' '<!DOCTYPE html><html><head><meta charset="utf-8">'
-		printf '<title>%s</title>' "$(handler_json_to_html_escape "$root_id")"
+		printf '<title>%s</title>' "$(handler_twitter_archive_export_write_conversation_reconstructed_html_escape "$root_id")"
 		printf '%s\n' '<style>
 body{background:#fff;color:#0f1419;font:15px/20px -apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;margin:0}
 main{max-width:600px;margin:0 auto;border-left:1px solid #eff3f4;border-right:1px solid #eff3f4}
@@ -116,16 +138,18 @@ time,article header{color:#536471}
 img,video{display:block;max-width:100%;height:auto;margin-top:12px;border-radius:16px}
 p{white-space:pre-wrap;margin:4px 0 0}
 </style></head><body><main>'
-		handler_json_to_html_render_tree "$root_id" "$output_directory"
+		handler_twitter_archive_export_write_conversation_reconstructed_html_render_tree "$root_id" "$output_directory"
 		printf '%s\n' '</main></body></html>'
 	} >| "$output"
 }
 
-handler_json_to_html_manifest_text() {
-	local tweet_id="$1" json path mtime
-	json="${json_of["$tweet_id"]}"
+handler_twitter_archive_export_write_conversation_reconstructed_html_manifest_text() {
+	local tweet_id="$1"
+	local json="${json_of["$tweet_id"]}"
+	local mtime
 	mtime="$(stat -c "%Y" -- "$json")"
 	printf 'json-mtime %s %s\n' "$json" "$mtime"
+	local path
 	for path in "$(dirname -- "$json")"/*; do
 		[[ -f "$path" ]] || continue
 		case "${path##*.}" in
@@ -138,32 +162,34 @@ handler_json_to_html_manifest_text() {
 		while IFS= read -r child; do
 			[[ -z "$child" ]] && continue
 
-			handler_json_to_html_manifest_text "$child"
+			handler_twitter_archive_export_write_conversation_reconstructed_html_manifest_text "$child"
 		done <<< "${children_of["$tweet_id"]}"
 	fi
 
 	if [[ -n "${quote_of["$tweet_id"]:-}" && -n "${json_of["${quote_of["$tweet_id"]}"]:-}" ]]; then
-		handler_json_to_html_manifest_text "${quote_of["$tweet_id"]}"
+		handler_twitter_archive_export_write_conversation_reconstructed_html_manifest_text "${quote_of["$tweet_id"]}"
 	fi
 }
 
-handler_json_to_html_backup() {
-	local output="$1" manifest="$2"
+handler_twitter_archive_export_write_conversation_reconstructed_html_backup() {
+	local output="$1"
+	local manifest="$2"
 	[[ ! -f "$output" && ! -f "$manifest" ]] && return 0
 
-	local backup_directory mtime dest
-	backup_directory="$(dirname -- "$output")/../__backups"
+	local backup_directory
+	backup_directory="$(backup_directory_for "$output" "$web_archive_path" "${handler_leaf_name["json-to-html"]-}")"
 	mkdir --parents -- "$backup_directory"
+	local mtime
 	if [[ -f "$output" ]]; then
 		mtime="$(date -r "$output" "+%d-%m-%Y-%H-%M-%S")" || return $?
 	else
 		mtime="$(date "+%d-%m-%Y-%H-%M-%S")"
 	fi
-	dest="$backup_directory/json-to-html-$mtime.zip"
+	local dest="$backup_directory/json-to-html-$mtime.zip"
 	local i=1
 	while [[ -e "$dest" ]]; do
 		dest="$backup_directory/json-to-html-${mtime}_$i.zip"
-		i="$((i + 1))" ||__expression_may_fail
+		i="$((i + 1))" || __expression_may_fail
 	done
 	dest="$(realpath --canonicalize-missing -- "$dest")"
 	local -a files=()
@@ -173,34 +199,46 @@ handler_json_to_html_backup() {
 	__info "Wrote pair backup %s" "$dest"
 }
 
-handler_json_to_html_reconstruct() {
-	local key local_json tweet_id reply_id quote_id name handle date json parent root_id
-	local output manifest output_directory user_id current next_manifest
-	declare -A json_of=() reply_of=() quote_of=() name_of=() handle_of=() date_of=()
-	declare -A children_of=() consumed=() embed_only=()
-
+handler_twitter_archive_export_write_conversation_reconstructed_html_reconstruct() {
+	declare -A json_of=()
+	declare -A reply_of=()
+	declare -A quote_of=()
+	declare -A name_of=()
+	declare -A handle_of=()
+	declare -A date_of=()
+	declare -A children_of=()
+	declare -A consumed=()
+	declare -A embed_only=()
 	declare -A quoted_entry=()
+
+	local key
 	for key in "${tree_order[@]}"; do
 		local -a local_jsons=()
 		mapfile -t local_jsons < <(get_values "$key" "local" true)
 		local quoted_flag=""
-		quoted_flag="$(get_value "$key" "is_quoted_tweet" 2>"/dev/null" )" || quoted_flag=""
+		quoted_flag="$(get_value "$key" "is_quoted_tweet" 2>"/dev/null")" || quoted_flag=""
+		local local_json
 		for local_json in "${local_jsons[@]}"; do
 			[[ -z "$local_json" || ! -f "$local_json" ]] && continue
-
 			[[ "$local_json" == *".json" || "$local_json" == *".JSON" ]] || continue
 
+			local tweet_id
 			tweet_id="$(jq -r '.tweet_id // .id // empty | tostring' -- "$local_json")"
 			[[ -n "$tweet_id" ]] || tweet_id="$(basename -- "$(dirname -- "$local_json")")"
 
+			local reply_id
 			reply_id="$(jq -r '.reply_id // empty | tostring' -- "$local_json")"
 			[[ "$reply_id" == "0" || "$reply_id" == "null" ]] && reply_id=""
 
+			local quote_id
 			quote_id="$(jq -r '.quoted_id // empty | tostring' -- "$local_json")"
 			[[ "$quote_id" == "0" || "$quote_id" == "null" ]] && quote_id=""
 
+			local name
 			name="$(jq -r '.author.name // .user.name // .author.nick // empty' -- "$local_json")"
+			local handle
 			handle="$(jq -r '.author.screen_name // .user.screen_name // .author.name // empty' -- "$local_json")"
+			local date
 			date="$(jq -r '.date // empty' -- "$local_json")"
 
 			json_of["$tweet_id"]="$local_json"
@@ -214,10 +252,11 @@ handler_json_to_html_reconstruct() {
 		done
 	done
 
+	local tweet_id
 	for tweet_id in "${!quote_of[@]}"; do
-		quote_id="${quote_of["$tweet_id"]}"
+		local quote_id="${quote_of["$tweet_id"]}"
 		[[ -n "$quote_id" && -z "${json_of["$quote_id"]:-}" ]] || continue
-		local found=""
+		local found
 		for found in "$gallerydl_dump_path"/*/"$quote_id/$quote_id.json"; do
 			[[ -f "$found" ]] || continue
 			json_of["$quote_id"]="$found"
@@ -231,30 +270,33 @@ handler_json_to_html_reconstruct() {
 	done
 
 	for tweet_id in "${!reply_of[@]}"; do
-		parent="${reply_of["$tweet_id"]}"
+		local parent="${reply_of["$tweet_id"]}"
 		[[ -n "$parent" && -n "${json_of["$parent"]:-}" && -z "${embed_only["$tweet_id"]:-}" ]] || continue
 		children_of["$parent"]+="$tweet_id"$'\n'
 	done
 
 	for tweet_id in $(printf '%s\n' "${!json_of[@]}" | sort); do
 		[[ -n "${embed_only["$tweet_id"]:-}" ]] && continue
-		
-		parent="${reply_of["$tweet_id"]}"
-		[[ -n "$parent" && -n "${json_of[$parent]:-}" ]] && continue
+
+		local parent="${reply_of["$tweet_id"]}"
+		[[ -n "$parent" && -n "${json_of["$parent"]:-}" ]] && continue
 		[[ -n "${consumed["$tweet_id"]:-}" ]] && continue
-		
-		json="${json_of["$tweet_id"]}"
+
+		local json="${json_of["$tweet_id"]}"
 		[[ -n "${quoted_entry["$tweet_id"]:-}" ]] && continue
-		
+
 		local tweet_directory
 		tweet_directory="$(dirname -- "$json")"
+		local user_id
 		user_id="$(basename -- "$(dirname -- "$tweet_directory")")"
+		local output_directory
 		output_directory="$(handler_leaf_directory "json-to-html" "$user_id/$(basename -- "$tweet_directory")")"
-		output="$output_directory/reconstructed-twitter-thread.html"
-		manifest="$output_directory/reconstructed-twitter-thread.manifest"
+		local output="$output_directory/reconstructed-twitter-thread.html"
+		local manifest="$output_directory/reconstructed-twitter-thread.manifest"
 		mkdir --parents -- "$output_directory"
 
-		current="$(handler_json_to_html_manifest_text "$tweet_id" | sort)"
+		local current
+		current="$(handler_twitter_archive_export_write_conversation_reconstructed_html_manifest_text "$tweet_id" | sort)"
 		if [[ -f "$output" && -f "$manifest" ]] && ! $force_update_existing; then
 			if [[ "$(sort -- "$manifest")" == "$current" ]]; then
 				__verbose "Skipping reconstructed thread %s, manifest matches" "$output"
@@ -263,20 +305,20 @@ handler_json_to_html_reconstruct() {
 			fi
 		fi
 
+		local next_manifest
 		next_manifest="$(mktemp)"
 		printf '%s\n' "$current" >| "$next_manifest"
-		handler_json_to_html_backup "$output" "$manifest"
-		handler_json_to_html_render_group "$tweet_id" "$output"
+		handler_twitter_archive_export_write_conversation_reconstructed_html_backup "$output" "$manifest"
+		handler_twitter_archive_export_write_conversation_reconstructed_html_render_group "$tweet_id" "$output"
 		if [[ ! -f "$output" ]]; then
 			local tweet_url
 			tweet_url="$(jq -r '.url // .tweet_url // empty' -- "$json")"
 			[[ -n "$tweet_url" ]] || tweet_url="tweet $tweet_id"
-			handler_json_to_html_log_failure "$tweet_url" "$output" "render produced no file"
-			__failure "json-to-html failed for %s" "$tweet_url"
+			handler_twitter_archive_export_write_conversation_reconstructed_html_log_failure "$tweet_url" "$output" "render produced no file"
+			__warn "json-to-html failed for %s" "$tweet_url"
 			continue
 		fi
 		mv -f -- "$next_manifest" "$manifest"
 		__info "Wrote reconstructed thread %s" "$output"
-		__success "json-to-html finished %s" "$output"
 	done
 }

@@ -43,55 +43,55 @@ load_configuration_file() {
 	if jq --exit-status 'has("temporary_files_path")' <<<"$json" >"/dev/null"; then
 		temporary_files_path="$(jq --raw-output '.temporary_files_path // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("page_script")' <<<"$json" >"/dev/null"; then
-		screenshot_page_script="$(jq --raw-output '.handlers.screenshot.page_script // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("page_script")' <<<"$json" >"/dev/null"; then
+		screenshot_page_script="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.page_script // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("maximum_height")' <<<"$json" >"/dev/null"; then
-		screenshot_maximum_height="$(jq --raw-output '.handlers.screenshot.maximum_height // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("maximum_height")' <<<"$json" >"/dev/null"; then
+		screenshot_maximum_height="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.maximum_height // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("width")' <<<"$json" >"/dev/null"; then
-		screenshot_width="$(jq --raw-output '.handlers.screenshot.width // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("width")' <<<"$json" >"/dev/null"; then
+		screenshot_width="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.width // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("viewport_height")' <<<"$json" >"/dev/null"; then
-		screenshot_viewport_height="$(jq --raw-output '.handlers.screenshot.viewport_height // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("viewport_height")' <<<"$json" >"/dev/null"; then
+		screenshot_viewport_height="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.viewport_height // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("browser_device_pixel_ratio")' <<<"$json" >"/dev/null"; then
-		screenshot_browser_device_pixel_ratio="$(jq --raw-output '.handlers.screenshot.browser_device_pixel_ratio // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("browser_device_pixel_ratio")' <<<"$json" >"/dev/null"; then
+		screenshot_browser_device_pixel_ratio="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.browser_device_pixel_ratio // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("zoom")' <<<"$json" >"/dev/null"; then
-		screenshot_zoom="$(jq --raw-output '.handlers.screenshot.zoom // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("zoom")' <<<"$json" >"/dev/null"; then
+		screenshot_zoom="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.zoom // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("reply_count")' <<<"$json" >"/dev/null"; then
-		screenshot_reply_count="$(jq --raw-output '.handlers.screenshot.reply_count // ""' <<<"$json")"
-	fi
-
-	if jq --exit-status '.handlers.wget | has("wait")' <<<"$json" >"/dev/null"; then
-		wget_wait="$(jq --raw-output '.handlers.wget.wait // ""' <<<"$json")"
-	fi
-	if jq --exit-status '.handlers.wget | has("limit_rate")' <<<"$json" >"/dev/null"; then
-		wget_limit_rate="$(jq --raw-output '.handlers.wget.limit_rate // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("reply_count")' <<<"$json" >"/dev/null"; then
+		screenshot_reply_count="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.reply_count // ""' <<<"$json")"
 	fi
 
-	if jq --exit-status '.handlers["wget-text"] | has("arguments_file")' <<<"$json" >"/dev/null"; then
-		wget_text_arguments_file="$(jq --raw-output '.handlers["wget-text"].arguments_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-webpage-with-wget | has("wait")' <<<"$json" >"/dev/null"; then
+		wget_wait="$(jq --raw-output '.handlers.webpage-archive-write-webpage-with-wget.wait // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers["wget-text"] | has("arguments")' <<<"$json" >"/dev/null"; then
+	if jq --exit-status '.handlers.webpage-archive-write-webpage-with-wget | has("limit_rate")' <<<"$json" >"/dev/null"; then
+		wget_limit_rate="$(jq --raw-output '.handlers.webpage-archive-write-webpage-with-wget.limit_rate // ""' <<<"$json")"
+	fi
+
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("arguments_file")' <<<"$json" >"/dev/null"; then
+		wget_text_arguments_file="$(jq --raw-output '.handlers["webpage-archive-write-webpage-light-with-wget"].arguments_file // ""' <<<"$json")"
+	fi
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("arguments")' <<<"$json" >"/dev/null"; then
 		wget_text_arguments=()
 		while IFS= read -r line; do
 			[[ -n "$line" ]] && wget_text_arguments+=("$line")
-		done < <(jq --raw-output '.handlers["wget-text"].arguments[]? // empty' <<<"$json" ||__expression_may_fail)
+		done < <(jq --raw-output '.handlers["webpage-archive-write-webpage-light-with-wget"].arguments[]? // empty' <<<"$json" ||__expression_may_fail)
 	fi
 
-	if jq --exit-status '.handlers.singlefile | has("wait_until")' <<<"$json" >"/dev/null"; then
-		singlefile_wait_until="$(jq --raw-output '.handlers.singlefile.wait_until // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-html-with-singlefile | has("wait_until")' <<<"$json" >"/dev/null"; then
+		singlefile_wait_until="$(jq --raw-output '.handlers.webpage-archive-write-html-with-singlefile.wait_until // ""' <<<"$json")"
 	fi
 
-	if jq --exit-status '.handlers["wget-text"] | has("output_as_zip")' <<<"$json" >"/dev/null"; then
-		wget_text_output_as_zip="$(jq --raw-output '.handlers["wget-text"].output_as_zip' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("output_as_zip")' <<<"$json" >"/dev/null"; then
+		wget_text_output_as_zip="$(jq --raw-output '.handlers["webpage-archive-write-webpage-light-with-wget"].output_as_zip' <<<"$json")"
 	fi
 
 	local name
-	for name in gallery-dl wget wget-text screenshot singlefile json-to-html; do
+	for name in twitter-archive-write-tweet-with-gallerydl webpage-archive-write-webpage-with-wget webpage-archive-write-webpage-light-with-wget webpage-archive-write-screenshot-with-screenshot-scraper webpage-archive-write-html-with-singlefile twitter-archive-export-write-conversation-reconstructed-html; do
 		if jq --exit-status --arg n "$name" '.handlers[$n] | has("enabled")' <<<"$json" >"/dev/null"; then
 			handler_enabled["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled' <<<"$json")"
 		fi
@@ -105,23 +105,23 @@ load_configuration_file() {
 		fi
 	done
 
-	if jq --exit-status '.handlers["gallery-dl"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		gallery_dl_cookie_file="$(jq --raw-output '.handlers["gallery-dl"].cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers["twitter-archive-write-tweet-with-gallerydl"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		gallery_dl_cookie_file="$(jq --raw-output '.handlers["twitter-archive-write-tweet-with-gallerydl"].cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.wget | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		wget_cookie_file="$(jq --raw-output '.handlers.wget.cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-webpage-with-wget | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		wget_cookie_file="$(jq --raw-output '.handlers.webpage-archive-write-webpage-with-wget.cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers["wget-text"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		wget_text_cookie_file="$(jq --raw-output '.handlers["wget-text"].cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		wget_text_cookie_file="$(jq --raw-output '.handlers["webpage-archive-write-webpage-light-with-wget"].cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.screenshot | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		screenshot_cookie_file="$(jq --raw-output '.handlers.screenshot.cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		screenshot_cookie_file="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.singlefile | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		singlefile_cookie_file="$(jq --raw-output '.handlers.singlefile.cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers.webpage-archive-write-html-with-singlefile | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		singlefile_cookie_file="$(jq --raw-output '.handlers.webpage-archive-write-html-with-singlefile.cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers["gallery-dl"] | has("leaf_folder")' <<<"$json" >"/dev/null"; then
-		handler_leaf_name["gallery-dl"]="$(jq --raw-output '.handlers["gallery-dl"].leaf_folder // ""' <<<"$json")"
+	if jq --exit-status '.handlers["twitter-archive-write-tweet-with-gallerydl"] | has("leaf_folder")' <<<"$json" >"/dev/null"; then
+		handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]="$(jq --raw-output '.handlers["twitter-archive-write-tweet-with-gallerydl"].leaf_folder // ""' <<<"$json")"
 	fi
 
 	return 0
@@ -129,7 +129,7 @@ load_configuration_file() {
 
 verify_handler_layout() {
 	local name leaf path gallery_real other_real
-	for name in wget wget-text screenshot singlefile json-to-html; do
+	for name in webpage-archive-write-webpage-with-wget webpage-archive-write-webpage-light-with-wget webpage-archive-write-screenshot-with-screenshot-scraper webpage-archive-write-html-with-singlefile twitter-archive-export-write-conversation-reconstructed-html; do
 		[[ "${handler_enabled["$name"]}" == "true" ]] || continue
 		leaf="${handler_leaf_name["$name"]-}"
 		if [[ -z "$leaf" ]]; then
@@ -143,19 +143,19 @@ verify_handler_layout() {
 		return 1
 	fi
 
-	for name in wget wget-text screenshot singlefile json-to-html; do
+	for name in webpage-archive-write-webpage-with-wget webpage-archive-write-webpage-light-with-wget webpage-archive-write-screenshot-with-screenshot-scraper webpage-archive-write-html-with-singlefile twitter-archive-export-write-conversation-reconstructed-html; do
 		[[ "${handler_enabled["$name"]}" == "true" ]] || continue
 		[[ -n "${handler_output_path["$name"]-}" ]] || { __error "%s output_path is empty" "$name"; return 1; }
 	done
 
-	if [[ "${handler_enabled[gallery-dl]}" == "true" ]]; then
-		[[ -n "${handler_output_path[gallery-dl]-}" ]] || { __error "gallery-dl output_path is empty"; return 1; }
-		gallery_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[gallery-dl]}")" || { __error "cannot resolve gallery-dl output_path"; return 1; }
-		for name in wget wget-text screenshot singlefile json-to-html; do
+	if [[ "${handler_enabled[twitter-archive-write-tweet-with-gallerydl]}" == "true" ]]; then
+		[[ -n "${handler_output_path[twitter-archive-write-tweet-with-gallerydl]-}" ]] || { __error "twitter-archive-write-tweet-with-gallerydl output_path is empty"; return 1; }
+		gallery_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path[twitter-archive-write-tweet-with-gallerydl]}")" || { __error "cannot resolve twitter-archive-write-tweet-with-gallerydl output_path"; return 1; }
+		for name in webpage-archive-write-webpage-with-wget webpage-archive-write-webpage-light-with-wget webpage-archive-write-screenshot-with-screenshot-scraper webpage-archive-write-html-with-singlefile twitter-archive-export-write-conversation-reconstructed-html; do
 			[[ "${handler_enabled["$name"]}" == "true" ]] || continue
 			other_real="$(realpath --canonicalize-missing -- "$archive_path/${handler_output_path["$name"]}")" || { __error "cannot resolve %s output_path" "$name"; return 1; }
 			if [[ "$gallery_real" == "$other_real" ]]; then
-				__error "gallery-dl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
+				__error "twitter-archive-write-tweet-with-gallerydl output_path %s resolves to the same path as %s" "$gallery_real" "$name"
 				return 1
 			fi
 		done

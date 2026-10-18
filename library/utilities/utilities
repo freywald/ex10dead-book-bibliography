@@ -41,6 +41,53 @@ abort_on_interrupt() {
 	accept_valid_status "$status"
 }
 
+backup_root_for() {
+	local data_root="$1"
+	local base
+	base="$(basename -- "${data_root%/}")"
+	printf '%s\n' "$(dirname -- "${data_root%/}")/$base.backups"
+}
+
+backup_directory_for() {
+	local path="$1"
+	local data_root="$2"
+	local leaf="${3-}"
+	local relative backup_root
+	relative="${path#"${data_root%/}"/}"
+	if [[ -n "$leaf" && "$relative" == */"$leaf" ]]; then
+		relative="${relative%/"$leaf"}"
+	fi
+	if [[ "$(basename -- "$relative")" == "__backups" ]]; then
+		relative="$(dirname -- "$relative")"
+	fi
+	backup_root="$(backup_root_for "$data_root")"
+	printf '%s\n' "$backup_root/$relative/__backups"
+}
+
+replace_symlink() {
+	local target="$1" link="$2"
+	if [[ -e "$link" && ! -L "$link" ]]; then
+		__error "refusing to replace non-symlink %s" "$link"
+		local_exit_failsafe
+	fi
+	ln -nfs -- "$target" "$link"
+}
+
+load_from_file() {
+	local path="$1"
+	if [[ ! -f "$path" ]]; then
+		__error "from-file not found: %s" "$path"
+		local_exit_failsafe
+	fi
+	local url
+	while IFS= read -r url || [[ -n "$url" ]]; do
+		if [[ -z "$url" || "$url" == \#* ]]; then
+			continue
+		fi
+		from_file_urls["$url"]=1
+	done < "$path"
+}
+
 load_handler() {
 	local file="$1"
 	source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/$file" || exit 1
@@ -73,7 +120,7 @@ handler_base_path() {
 	fi
 
 	case "$name" in
-		"gallery-dl") printf '%s\n' "$archive_path/$gallerydl_dump_directory_name" ;;
+		"twitter-archive-write-tweet-with-gallerydl") printf '%s\n' "$archive_path/$gallerydl_dump_directory_name" ;;
 		*) printf '%s\n' "$archive_path/$web_archive_directory_name" ;;
 	esac
 }
@@ -124,7 +171,7 @@ handler_id_directory() {
 handler_leaf_directory() {
 	local name="$1" id="$2" leaf id_directory
 	if [[ -z "${handler_leaf_name["$name"]+set}" ]]; then
-		if [[ "$name" == "gallery-dl" ]]; then
+		if [[ "$name" == "twitter-archive-write-tweet-with-gallerydl" ]]; then
 			leaf=""
 		else
 			leaf="$name"
@@ -145,7 +192,7 @@ archive_zip_path() {
 	local url="$1"
 	local id="$2"
 	local url_kind="$3"
-	local handler="${4:-wget}"
+	local handler="${4:-webpage-archive-write-webpage-with-wget}"
 	local leaf_directory zip_archive url_pretty
 	leaf_directory="$(handler_leaf_directory "$handler" "$id")"
 	if [[ "$url_kind" == "entry" ]]; then
@@ -189,7 +236,7 @@ gallerydl_json_for_url() {
 	id_path="${queued_ids["$url"]-}"
 	[[ -z "$id_path" ]] && return 1
 
-	directory="$(handler_leaf_directory "gallery-dl" "$id_path")"
+	directory="$(handler_leaf_directory "twitter-archive-write-tweet-with-gallerydl" "$id_path")"
 	json="$directory/$tweet_id.json"
 	handler_gallerydl_warn_extra_json "$directory" "$tweet_id.json"
 	[[ ! -f "$json" ]] && return 1

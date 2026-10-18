@@ -1,0 +1,202 @@
+#!/bin/bash
+
+# configuration start
+
+wget_text_output_as_zip=true
+
+# configuration end
+
+# script start
+
+handler_webpage_archive_write_webpage_light_with_wget_sourced=true
+
+handler_webpage_archive_write_webpage_light_with_wget_parse_arguments() {
+	local -a arguments=()
+	while (($# > 0)); do
+		if [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-argument" ]]; then
+			wget_text_arguments+=("${2-}")
+			shift 2 || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-argument="* ]]; then
+			wget_text_arguments+=("${1#--webpage-archive-write-webpage-light-with-wget-argument=}")
+			shift || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-arguments-from-file" ]]; then
+			wget_text_arguments_file="${2-}"
+			if [[ -z "$wget_text_arguments_file" ]]; then
+				__error "--webpage-archive-write-webpage-light-with-wget-arguments-from-file requires a path"
+				local_exit_failsafe
+			fi
+			shift 2 || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-arguments-from-file="* ]]; then
+			wget_text_arguments_file="${1#--webpage-archive-write-webpage-light-with-wget-arguments-from-file=}"
+			shift || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-output-as-zip" ]]; then
+			wget_text_output_as_zip=true
+			shift || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-output-as-files" ]]; then
+			wget_text_output_as_zip=false
+			shift || __expression_may_fail
+		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-"* ]]; then
+			__error "unknown webpage-archive-write-webpage-light-with-wget argument %s" "$1"
+			local_exit_failsafe
+		else
+			arguments+=("$1")
+			shift || __expression_may_fail
+		fi
+	done
+
+	set -- "${arguments[@]}"
+}
+
+handler_webpage_archive_write_webpage_light_with_wget_log_failure() {
+	local url="$1"
+	local filename="$2"
+	local reason="$3"
+	{
+		printf 'url: %s\n' "$url"
+		printf 'filename: %s\n' "$filename"
+		printf 'reason: %s\n' "$reason"
+		printf '\n'
+	} >> "$run_error_log"
+	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/webpage-archive-write-webpage-light-with-wget-failed-items.log"
+}
+
+handler_webpage_archive_write_webpage_light_with_wget_backup() {
+	local directory="$1"
+	local expected_zip="${2-}"
+	[[ -d "$directory" ]] || return 0
+
+	local found
+	found="$(find "$directory" -mindepth 1 -print -quit)" || return $?
+	[[ -n "$found" ]] || return 0
+
+	local backup_directory
+	backup_directory="$(backup_directory_for "$directory" "$(handler_base_path "webpage-archive-write-webpage-light-with-wget")" "${handler_leaf_name["webpage-archive-write-webpage-light-with-wget"]-}")"
+	mkdir --parents -- "$backup_directory"
+
+	local stamp
+	stamp="$(date +%d-%m-%Y-%H-%M-%S)"
+	local destination
+	if [[ -n "$expected_zip" && -f "$expected_zip" ]]; then
+		local others=false
+		local file
+		local base
+		for file in "$directory"/*; do
+			[[ -e "$file" ]] || continue
+			base="$(basename -- "$file")"
+			[[ "$file" == "$expected_zip" || "$file" == "$expected_zip.etag" ]] && continue
+			others=true
+			break
+		done
+		if ! $others; then
+			destination="$backup_directory/$(basename -- "$expected_zip" .zip)-$stamp.zip"
+			local i=1
+			while [[ -e "$destination" ]]; do
+				destination="$backup_directory/$(basename -- "$expected_zip" .zip)-${stamp}_$i.zip"
+				i=$((i + 1)) || __expression_may_fail
+			done
+
+			mv -- "$expected_zip" "$destination"
+			[[ -f "$expected_zip.etag" ]] && mv -- "$expected_zip.etag" "${destination%.zip}.etag"
+
+			__info "Moved zip backup %s" "$destination"
+			return 0
+		fi
+		__warn "expected zip %s is mixed with other files; packing the directory" "$expected_zip"
+	fi
+
+	destination="$backup_directory/wget-text-$stamp.zip"
+	local i=1
+	while [[ -e "$destination" ]]; do
+		destination="$backup_directory/wget-text-${stamp}_$i.zip"
+		i=$((i + 1)) || __expression_may_fail
+	done
+	local status=0
+	destination="$(realpath --canonicalize-missing -- "$destination")" || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		return "$status"
+	fi
+	__info "Writing backup zip %s" "$destination"
+	status=0
+	(cd -- "$directory" && zip --no-wild --test --move "$destination" -- ".") || status="$(abort_on_interrupt "$?")"
+	return "$status"
+}
+
+handler_webpage_archive_write_webpage_light_with_wget_download() {
+	local url="$1"
+	local domain="$2"
+	local output_directory="$3"
+	local status=0
+
+	mkdir --parents -- "$(dirname -- "$output_directory")"
+
+	local stem
+	stem="$(basename -- "$output_directory")"
+	local expected_zip="$output_directory"
+	local work
+	if $wget_text_output_as_zip; then
+		[[ "$expected_zip" == *.zip ]] || expected_zip="$output_directory.zip"
+		if [[ -f "$expected_zip" ]] && ! $force_update_existing; then
+			__verbose "Skipping wget-text %s, zip exists" "$url"
+			return 0
+		fi
+		status=0
+		handler_webpage_archive_write_webpage_light_with_wget_backup "$(dirname -- "$expected_zip")" "$expected_zip" || status="$(abort_on_interrupt "$?")"
+		if (( status != 0 )); then
+			__warn "wget-text backup failed for %s" "$url"
+			return "$status"
+		fi
+		work="$temporary_files_path/$(date +%s)-wget-text/$stem"
+		mkdir --parents -- "$work"
+		output_directory="$work"
+	else
+		if [[ -d "$output_directory" && -f "$output_directory/SUCCESSFUL_DOWNLOAD" ]] && ! $force_update_existing; then
+			__verbose "Skipping wget-text %s, directory exists" "$url"
+			return 0
+		fi
+		status=0
+		handler_webpage_archive_write_webpage_light_with_wget_backup "$output_directory" || status="$(abort_on_interrupt "$?")"
+		if (( status != 0 )); then
+			__warn "wget-text backup failed for %s" "$url"
+			return "$status"
+		fi
+		mkdir --parents -- "$output_directory"
+		work="$output_directory"
+	fi
+
+	local -a args=()
+	local line
+	if [[ -n "$wget_text_arguments_file" ]]; then
+		while IFS= read -r line || [[ -n "$line" ]]; do
+			line="${line#"${line%%[![:space:]]*}"}"
+			[[ -z "$line" || "$line" == \#* ]] && continue
+			args+=("$line")
+		done < "$wget_text_arguments_file"
+	fi
+	args+=("${wget_text_arguments[@]}")
+	wget "${args[@]}" --directory-prefix="$output_directory" --domains="$domain" -- "$url" || status="$(abort_on_interrupt "$?")"
+
+	if (( status != 0 )); then
+		local backup_status=0
+		handler_webpage_archive_write_webpage_light_with_wget_backup "$work" || backup_status="$(abort_on_interrupt "$?")"
+		if (( backup_status != 0 )); then
+			__warn "wget-text backup failed for %s" "$url"
+		fi
+		handler_webpage_archive_write_webpage_light_with_wget_log_failure "$url" "$expected_zip" "wget exit $status"
+		return "$status"
+	fi
+
+	if $wget_text_output_as_zip; then
+		mkdir --parents -- "$(dirname -- "$expected_zip")"
+		status=0
+		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || status="$(abort_on_interrupt "$?")"
+		if (( status != 0 )); then
+			handler_webpage_archive_write_webpage_light_with_wget_log_failure "$url" "$expected_zip" "zip exit $status"
+			return "$status"
+		fi
+		return 0
+	fi
+
+	: >| "$output_directory/SUCCESSFUL_DOWNLOAD"
+
+	return 0
+}

@@ -10,19 +10,22 @@ bibliography_sources_path: "Quellen/"
 temporary_files_path: /tmp/bibliography-working-directory/
 
 handlers:
-    gallery-dl:
+    twitter-archive-write-tweet-with-gallerydl:
         enabled: false
         output_path: "gallery-dl/"
         leaf_folder: "gallery-dl"
         cookie_file: ""
-    wget:
+    twitter-manage-archive-cleanup-duplicate-files:
+        enabled: false
+        trash_path: ""
+    webpage-archive-write-webpage-with-wget:
         enabled: false
         output_path: "web-archive/"
         leaf_folder: "wget"
         wait: 2
         limit_rate: "500k"
         cookie_file: ""
-    wget-text:
+    webpage-archive-write-webpage-light-with-wget:
         enabled: false
         output_path: "web-archive/"
         leaf_folder: "wget-text"
@@ -30,7 +33,7 @@ handlers:
         arguments: []
         arguments_file: ""
         cookie_file: ""
-    screenshot:
+    webpage-archive-write-screenshot-with-screenshot-scraper:
         enabled: false
         output_path: "web-archive/"
         leaf_folder: "screenshot"
@@ -42,13 +45,13 @@ handlers:
         zoom: 1
         reply_count: 3
         cookie_file: ""
-    singlefile:
+    webpage-archive-write-html-with-singlefile:
         enabled: false
         output_path: "web-archive/"
         leaf_folder: "singlefile"
         wait_until: "networkIdle"
         cookie_file: ""
-    json-to-html:
+    twitter-archive-export-write-conversation-reconstructed-html:
         enabled: false
         output_path: "web-archive/"
         leaf_folder: "json-to-html"

@@ -4,56 +4,60 @@
 
 # configuration end
 
-# script task start
+# script start
 
-handler_wget_sourced=true
+handler_webpage_archive_write_webpage_with_wget_sourced=true
 
-handler_wget_parse_arguments() {
+handler_webpage_archive_write_webpage_with_wget_parse_arguments() {
 	local -a arguments=()
 	while (($# > 0)); do
-		if [[ "$1" == "--wget-wait" ]]; then
+		if [[ "$1" == "--webpage-archive-write-webpage-with-wget-wait" ]]; then
 			wget_wait="${2-}"
 			shift 2 || __expression_may_fail
-		elif [[ "$1" == "--wget-wait="* ]]; then
-			wget_wait="${1#--wget-wait=}"
+		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-wait="* ]]; then
+			wget_wait="${1#--webpage-archive-write-webpage-with-wget-wait=}"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--wget-limit-rate" ]]; then
+		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-limit-rate" ]]; then
 			wget_limit_rate="${2-}"
 			shift 2 || __expression_may_fail
-		elif [[ "$1" == "--wget-limit-rate="* ]]; then
-			wget_limit_rate="${1#--wget-limit-rate=}"
+		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-limit-rate="* ]]; then
+			wget_limit_rate="${1#--webpage-archive-write-webpage-with-wget-limit-rate=}"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--wget-text-"* ]]; then
+		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-text-"* ]]; then
 			arguments+=("$1")
 			shift || __expression_may_fail
-		elif [[ "$1" == "--wget-"* ]]; then
-			__error "unknown wget argument %s" "$1"
+		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-"* ]]; then
+			__error "unknown webpage-archive-write-webpage-with-wget argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
 			shift || __expression_may_fail
 		fi
 	done
+
 	set -- "${arguments[@]}"
 }
 
-handler_wget_log_failure() {
-	local url="$1" filename="$2" reason="$3"
+handler_webpage_archive_write_webpage_with_wget_log_failure() {
+	local url="$1"
+	local filename="$2"
+	local reason="$3"
 	{
 		printf 'url: %s\n' "$url"
 		printf 'filename: %s\n' "$filename"
 		printf 'reason: %s\n' "$reason"
 		printf '\n'
 	} >> "$run_error_log"
+	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/webpage-archive-write-webpage-with-wget-failed-items.log"
 }
 
-handler_wget_is_html_document() {
+handler_webpage_archive_write_webpage_with_wget_is_html_document() {
 	local mime
 	mime="$(file -b --mime-type -- "$1")"
 	[[ "$mime" == text/html* || "$mime" == application/xhtml+xml* ]]
 }
 
-function handler_wget_download() {
+handler_webpage_archive_write_webpage_with_wget_download() {
 	local url="$1"
 	local directory="$2"
 	local url_identifier="$3"
@@ -62,9 +66,8 @@ function handler_wget_download() {
 
 	backup_existing_archive=false
 
-	local work_directory="$directory"
 	local zip_archive
-	zip_archive="$(archive_zip_path "$url" "$url_identifier" "$url_kind" wget)"
+	zip_archive="$(archive_zip_path "$url" "$url_identifier" "$url_kind" "webpage-archive-write-webpage-with-wget")"
 	directory="$temporary_files_path/$(date +%s)-wget/$(basename -- "$url_identifier")"
 	mkdir --parents -- "$directory"
 
@@ -87,56 +90,53 @@ function handler_wget_download() {
 	if [[ "$http_status" != 2* ]]; then
 		if [[ -f "$zip_archive" ]]; then
 			__info "HTTP status %s received for %s — File cannot be downloaded – but is already archived!" "$http_status" "[$url_identifier] $url"
-			return
+			return 0
 		else
 			__warn "HTTP status %s received for %s — File cannot be downloaded and cannot be archived!" "$http_status" "[$url_identifier] $url"
-			return
+			return 0
 		fi
 	fi
-
-	local remote_mtime=0
-	local last_modified=""
 
 	__debug "$url"
 	__debug "$headers"
 
-	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||__expression_may_fail; } | head -1 | cut -d: -f2-)"
+	local last_modified
+	last_modified="$(printf '%s\n' "$headers" | { grep --ignore-case '^last-modified:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2-)"
 	last_modified="${last_modified-}"
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
-	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||__expression_may_fail; } | head -1 | cut -d: -f2- | tr -d '\" ')"
 
-	remote_mtime=0
-	local status=0
+	local etag
+	etag="$(printf '%s\n' "$headers" | { grep --ignore-case '^etag:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
+
+	local remote_mtime=0
+	status=0
 	if [[ -n "$last_modified" ]]; then
-		remote_mtime="$(date -d "$last_modified" "+%s")" || status="$(abort_on_interrupt "$?")"
-
+		remote_mtime="$(date --date="$last_modified" "+%s")" || status="$(abort_on_interrupt "$?")"
 		if (( status != 0 )); then
 			__error "bad Last-Modified %s" "$last_modified"
 			return "$status"
 		fi
 	fi
 
-	local_mtime=0
+	local local_mtime=0
 	status=0
 	if [[ -f "$zip_archive" ]]; then
-		local_mtime="$(stat -c "%Y" -- "$zip_archive")" || status="$(abort_on_interrupt "$?")"
-
+		local_mtime="$(stat --format="%Y" -- "$zip_archive")" || status="$(abort_on_interrupt "$?")"
 		if (( status != 0 )); then
 			__error "cannot stat %s" "$zip_archive"
 			return "$status"
 		fi
 	fi
 
-	__debug "$remote_mtime $(date -d "@$remote_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
-	__debug "$local_mtime $(date -d "@$local_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
+	__debug "$remote_mtime $(date --date="@$remote_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
+	__debug "$local_mtime $(date --date="@$local_mtime" "+%d.%m.%Y [%H∶%M∶%S]")"
 
 	if (( remote_mtime > 0 )); then
 		local tolerance_in_seconds=60
 		if (( remote_mtime <= local_mtime + tolerance_in_seconds )); then
 			if [[ -f "$zip_archive" ]]; then
 				__info "Skipping %s, archive is up to date (last-modified)" "[$url_identifier] $url"
-				__info "Skipping %s" "[$url_identifier] $url"
 				return
 			else
 				__error "mtime mismatch – File cannot be properly archived!"
@@ -189,8 +189,7 @@ function handler_wget_download() {
 	wget --header="Accept: text/html" --wait="$wait_seconds" --random-wait --limit-rate="$limit_rate" --tries=5 --retry-on-http-error=429,503 --convert-links --restrict-file-names=windows --no-host-directories --html-extension --page-requisites --adjust-extension --span-hosts --no-directories --directory-prefix="$directory/files" -- "$url" || status="$(abort_on_interrupt "$?")"
 
 	if (( status != 0 )); then
-		handler_wget_log_failure "$url" "$zip_archive" "wget exit $status"
-		__failure "wget failed for %s" "$url"
+		handler_webpage_archive_write_webpage_with_wget_log_failure "$url" "$zip_archive" "wget exit $status"
 		return "$status"
 	fi
 
@@ -253,11 +252,11 @@ function handler_wget_download() {
 
 		file=""
 		if [[ -n "$url_leaf" ]]; then
-			if [[ -f "$directory/files/$url_leaf" ]] && handler_wget_is_html_document "$directory/files/$url_leaf"; then
+			if [[ -f "$directory/files/$url_leaf" ]] && handler_webpage_archive_write_webpage_with_wget_is_html_document "$directory/files/$url_leaf"; then
 				file="$directory/files/$url_leaf"
-			elif [[ -f "$directory/files/${url_leaf}.html" ]] && handler_wget_is_html_document "$directory/files/${url_leaf}.html"; then
+			elif [[ -f "$directory/files/${url_leaf}.html" ]] && handler_webpage_archive_write_webpage_with_wget_is_html_document "$directory/files/${url_leaf}.html"; then
 				file="$directory/files/${url_leaf}.html"
-			elif [[ -f "$directory/files/${url_leaf}.htm" ]] && handler_wget_is_html_document "$directory/files/${url_leaf}.htm"; then
+			elif [[ -f "$directory/files/${url_leaf}.htm" ]] && handler_webpage_archive_write_webpage_with_wget_is_html_document "$directory/files/${url_leaf}.htm"; then
 				file="$directory/files/${url_leaf}.htm"
 			fi
 		fi
@@ -268,7 +267,7 @@ function handler_wget_download() {
 				index.html index.htm index.xhtml index.shtml \
 				index.php default.html default.htm default.asp \
 				home.html home.htm welcome.html; do
-				if [[ -f "$directory/files/$index_name" ]] && handler_wget_is_html_document "$directory/files/$index_name"; then
+				if [[ -f "$directory/files/$index_name" ]] && handler_webpage_archive_write_webpage_with_wget_is_html_document "$directory/files/$index_name"; then
 					file="$directory/files/$index_name"
 					break
 				fi
@@ -277,7 +276,7 @@ function handler_wget_download() {
 				local numbered
 				for numbered in "$directory/files/"index.html.[0-9]* "$directory/files/"index.htm.[0-9]*; do
 					[[ -f "$numbered" ]] || continue
-					if handler_wget_is_html_document "$numbered"; then
+					if handler_webpage_archive_write_webpage_with_wget_is_html_document "$numbered"; then
 						file="$numbered"
 						break
 					fi
@@ -287,7 +286,8 @@ function handler_wget_download() {
 
 		if [[ -z "$file" ]]; then
 			local -a main_html=()
-			local candidate base
+			local candidate
+			local base
 			for candidate in "${html_files[@]}"; do
 				base="$(basename -- "$candidate")"
 				case "$base" in
@@ -298,7 +298,7 @@ function handler_wget_download() {
 						continue
 						;;
 				esac
-				handler_wget_is_html_document "$candidate" || continue
+				handler_webpage_archive_write_webpage_with_wget_is_html_document "$candidate" || continue
 				main_html+=("$candidate")
 			done
 			if (( ${#main_html[@]} == 1 )); then
@@ -313,13 +313,12 @@ function handler_wget_download() {
 				__warn "leaving existing archive in place: %s" "$zip_archive"
 				return
 			fi
-			handler_wget_log_failure "$url" "$zip_archive" "could not resolve main HTML"
-			__failure "wget failed for %s" "$url"
+			handler_webpage_archive_write_webpage_with_wget_log_failure "$url" "$zip_archive" "could not resolve main HTML"
 			return 1
 		fi
 	else
 		file="${html_files[0]}"
-		if [[ -n "$file" && -f "$file" ]] && ! handler_wget_is_html_document "$file"; then
+		if [[ -n "$file" && -f "$file" ]] && ! handler_webpage_archive_write_webpage_with_wget_is_html_document "$file"; then
 			file=""
 		fi
 	fi
@@ -329,8 +328,7 @@ function handler_wget_download() {
 			__info "File cannot be downloaded – but is already archived!"
 			return
 		fi
-		handler_wget_log_failure "$url" "$zip_archive" "no HTML downloaded"
-		__failure "wget failed for %s" "$url"
+		handler_webpage_archive_write_webpage_with_wget_log_failure "$url" "$zip_archive" "no HTML downloaded"
 		return 1
 	fi
 
@@ -347,27 +345,36 @@ function handler_wget_download() {
 		sed -i 's|url(["'\'']*\([^:'\''" )]*\)["'\'']*)|url("\1")|g' -- "$css_file"
 	done
 
-	ln -nfs -- "files/$(basename -- "$file")" "$directory/index.html"
+	ln --no-dereference --force --symbolic -- "files/$(basename -- "$file")" "$directory/index.html"
 
 	if $backup_existing_archive && [[ -f "$zip_archive" ]]; then
-		local backup_directory backup_name
-		backup_directory="$(dirname -- "$(dirname -- "$zip_archive")")/__backups"
+		local backup_directory
+		backup_directory="$(backup_directory_for "$zip_archive" "$(handler_base_path "webpage-archive-write-webpage-with-wget")" "${handler_leaf_name["webpage-archive-write-webpage-with-wget"]-}")"
 		mkdir --parents -- "$backup_directory"
-		backup_name="$(basename -- "$zip_archive" ".zip").$(date -d "@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
+		local backup_name
+		backup_name="$(basename -- "$zip_archive" ".zip").$(date --date="@$local_mtime" "+%d-%m-%Y-%H-%M-%S").zip"
 		mv -- "$zip_archive" "$backup_directory/$backup_name"
 		[[ -f "$etag_file" ]] && mv -- "$etag_file" "$backup_directory/${backup_name%.zip}.etag"
 	fi
 
 	mkdir --parents -- "$(dirname -- "$zip_archive")"
-	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")"
-	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".")
-	rmdir -- "$directory" ||__expression_may_fail
+	status=0
+	zip_archive="$(realpath --canonicalize-missing -- "$zip_archive")" || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		handler_webpage_archive_write_webpage_with_wget_log_failure "$url" "$zip_archive" "realpath exit $status"
+		return "$status"
+	fi
+	status=0
+	(cd -- "$directory" && zip --no-wild --test --move "$zip_archive" -- ".") || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		handler_webpage_archive_write_webpage_with_wget_log_failure "$url" "$zip_archive" "zip exit $status"
+		return "$status"
+	fi
+	rmdir -- "$directory" || __expression_may_fail
 
 	if (( remote_mtime > 0 )); then
-		touch -d "@$remote_mtime" "$zip_archive"
+		touch --date="@$remote_mtime" "$zip_archive"
 	fi
 
 	[[ -n "$etag" ]] && printf '%s\n' "$etag" >| "$etag_file"
-
-	__success "wget finished %s" "$url"
 }

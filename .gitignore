@@ -3,5 +3,6 @@ venv/*
 __pycache__/
 archive/
 archive2/
+library-old/
 .idea/
 

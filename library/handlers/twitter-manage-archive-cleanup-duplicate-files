@@ -1,0 +1,224 @@
+#!/bin/bash
+
+# configuration start
+
+# configuration end
+
+# script start
+
+handler_twitter_manage_archive_cleanup_duplicate_files_sourced=true
+
+handler_twitter_manage_archive_cleanup_duplicate_files_parse_arguments() {
+	local -a arguments=()
+	while (($# > 0)); do
+		if [[ "$1" == "--twitter-manage-archive-cleanup-duplicate-files-"* ]]; then
+			__error "unknown twitter-manage-archive-cleanup-duplicate-files argument %s" "$1"
+			local_exit_failsafe
+		else
+			arguments+=("$1")
+			shift || __expression_may_fail
+		fi
+	done
+
+	set -- "${arguments[@]}"
+}
+
+handler_twitter_manage_archive_cleanup_duplicate_files() {
+	if [[ -z "${cleanup_trash_path-}" ]]; then
+		__error "trash_path is empty; refusing to run twitter-manage-archive-cleanup-duplicate-files"
+		local_exit_failsafe
+	fi
+
+	local trash_root="$cleanup_trash_path"
+	if [[ "$trash_root" != /* ]]; then
+		trash_root="$(realpath --canonicalize-missing -- "$trash_root")" || {
+			__error "cannot resolve trash_path %s" "$cleanup_trash_path"
+			local_exit_failsafe
+		}
+	fi
+	mkdir --parents -- "$trash_root"
+
+	# Volatile fields that change without the post content changing.
+	# Counters and the bookmark timestamp move on every view or bookmark action.
+	# Profile fields (nick, description, location, banner, image, verified, protected)
+	# change when the account is edited; the oldest copy is the one we keep.
+	local volatile_filter
+	volatile_filter='
+		del(
+			.view_count, .favorite_count, .quote_count, .reply_count,
+			.retweet_count, .bookmark_count, .date_bookmarked, .count,
+			.author.favourites_count, .author.followers_count, .author.friends_count,
+			.author.listed_count, .author.media_count, .author.statuses_count,
+			.user.favourites_count, .user.followers_count, .user.friends_count,
+			.user.listed_count, .user.media_count, .user.statuses_count,
+			.author.nick, .user.nick,
+			.author.description, .user.description,
+			.author.location, .user.location,
+			.author.profile_banner, .user.profile_banner,
+			.author.profile_image, .user.profile_image,
+			.author.verified, .user.verified,
+			.author.protected, .user.protected
+		)
+	'
+
+	declare -A groups=()
+	local cleaned=0
+	local tweet_directory
+	for tweet_directory in "$gallerydl_dump_path"/*/*/; do
+		if [[ ! -d "$tweet_directory" ]]; then
+			continue
+		fi
+
+		local backups="$tweet_directory/__backups"
+		if [[ ! -d "$backups" ]]; then
+			continue
+		fi
+
+		local -a json_zips=()
+		local zip
+		for zip in "$backups"/*.json.zip; do
+			if [[ -f "$zip" ]]; then
+				json_zips+=("$zip")
+			fi
+		done
+		if ((${#json_zips[@]} < 2)); then
+			continue
+		fi
+
+		local relative="${tweet_directory#"$gallerydl_dump_path/"}"
+		relative="${relative%/}"
+		local work
+		work="$temporary_files_path/$(date +%s)-cleanup/$relative"
+		mkdir --parents -- "$work"
+
+		local -a member_zips=()
+		local -a member_hashes=()
+		local -a member_json_mtimes=()
+		local -a member_zip_mtimes=()
+		local -a member_norms=()
+		local abort=false
+		local hash json_mtime zip_mtime normalized entry json_count status
+
+		for zip in "${json_zips[@]}"; do
+			json_count="$(unzip -Z1 -- "$zip" | grep -c '\.json$')" || json_count=""
+			mapfile -t entries < <(unzip -Z1 -- "$zip" | grep '\.json$' || true)
+			entry="${entries[0]-}"
+			if [[ -z "$entry" || "$json_count" != "1" ]]; then
+				__warn "skipping item, zip has not exactly one json: %s" "$zip"
+				abort=true
+				break
+			fi
+
+			hash="$(basename -- "$zip" .json.zip)"
+			status=0
+			unzip -p -- "$zip" "$entry" >| "$work/$hash.json" || status=$?
+			if (( status != 0 )); then
+				__warn "skipping item, unzip failed: %s" "$zip"
+				abort=true
+				break
+			fi
+
+			status=0
+			json_mtime="$(stat -c %Y -- "$work/$hash.json")" || status=$?
+			if (( status != 0 )); then
+				__warn "skipping item, cannot stat extracted json: %s" "$zip"
+				abort=true
+				break
+			fi
+
+			status=0
+			zip_mtime="$(stat -c %Y -- "$zip")" || status=$?
+			if (( status != 0 )); then
+				__warn "skipping item, cannot stat zip: %s" "$zip"
+				abort=true
+				break
+			fi
+
+			status=0
+			normalized="$(jq -c "$volatile_filter" -- "$work/$hash.json")" || status=$?
+			if (( status != 0 )); then
+				__warn "skipping item, jq failed: %s" "$zip"
+				abort=true
+				break
+			fi
+
+			member_zips+=("$zip")
+			member_hashes+=("$hash")
+			member_json_mtimes+=("$json_mtime")
+			member_zip_mtimes+=("$zip_mtime")
+			member_norms+=("$normalized")
+		done
+		if $abort; then
+			continue
+		fi
+
+		unset groups
+		declare -A groups
+		local index norm
+		for index in "${!member_norms[@]}"; do
+			norm="${member_norms["$index"]}"
+			groups["$norm"]+="$index"$'\n'
+		done
+
+		local group
+		for group in "${!groups[@]}"; do
+			local -a group_indexes=()
+			local member_index
+			while IFS= read -r member_index; do
+				if [[ -n "$member_index" ]]; then
+					group_indexes+=("$member_index")
+				fi
+			done <<<"${groups["$group"]}"
+			if ((${#group_indexes[@]} < 2)); then
+				continue
+			fi
+
+			local candidate_index="${group_indexes["0"]}"
+			local best_json_mtime="${member_json_mtimes["$candidate_index"]}"
+			local best_zip_mtime="${member_zip_mtimes["$candidate_index"]}"
+			local m_json m_zip
+
+			for member_index in "${group_indexes[@]}"; do
+				m_json="${member_json_mtimes["$member_index"]}"
+				m_zip="${member_zip_mtimes["$member_index"]}"
+				if (( m_json < best_json_mtime )); then
+					best_json_mtime="$m_json"
+					best_zip_mtime="$m_zip"
+					candidate_index="$member_index"
+				elif (( m_json == best_json_mtime && m_zip < best_zip_mtime )); then
+					best_zip_mtime="$m_zip"
+					candidate_index="$member_index"
+				fi
+			done
+
+			local trash_item="$trash_root/$relative/__backups"
+			mkdir --parents -- "$trash_item"
+			local candidate_hash="${member_hashes["$candidate_index"]}"
+			local log="$trash_item/${candidate_hash}.candidate-selection.log"
+			{
+				printf '--- cleanup run %s ---\n' "$(date '+%d.%m.%Y %H:%M:%S')"
+				printf 'kept: %s\n' "${member_zips["$candidate_index"]}"
+			} >> "$log"
+
+			local other_index other_zip other_name destination
+			for other_index in "${group_indexes[@]}"; do
+				if [[ "$other_index" == "$candidate_index" ]]; then
+					continue
+				fi
+				other_zip="${member_zips["$other_index"]}"
+				other_name="$(basename -- "$other_zip")"
+				destination="$trash_item/$other_name"
+				if [[ -e "$destination" ]]; then
+					__warn "trash file already exists, not moved: %s" "$destination"
+					continue
+				fi
+				printf 'moved: %s\n' "$other_zip" >> "$log"
+				mv -- "$other_zip" "$destination"
+				cleaned="$((cleaned + 1))" || __expression_may_fail
+			done
+		done
+
+	done
+
+	__info "cleaned %s duplicate json backup(s)" "$cleaned"
+}

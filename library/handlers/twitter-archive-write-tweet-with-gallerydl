@@ -6,25 +6,25 @@
 
 # script start
 
-handler_gallerydl_sourced=true
+handler_twitter_archive_write_tweet_with_gallerydl_sourced=true
 
-handler_gallerydl_parse_arguments() {
+handler_twitter_archive_write_tweet_with_gallerydl_parse_arguments() {
 	local -a arguments=()
 	while (($# > 0)); do
-		if [[ "$1" == "--gallerydl-sleep" ]]; then
+		if [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep" ]]; then
 			gallerydl_sleep="${2-}"
 			shift 2 || __expression_may_fail
-		elif [[ "$1" == "--gallerydl-sleep="* ]]; then
-			gallerydl_sleep="${1#--gallerydl-sleep=}"
+		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep="* ]]; then
+			gallerydl_sleep="${1#--twitter-archive-write-tweet-with-gallerydl-sleep=}"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--gallerydl-sleep-request" ]]; then
+		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep-request" ]]; then
 			gallerydl_sleep_request="${2-}"
 			shift 2 || __expression_may_fail
-		elif [[ "$1" == "--gallerydl-sleep-request="* ]]; then
-			gallerydl_sleep_request="${1#--gallerydl-sleep-request=}"
+		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep-request="* ]]; then
+			gallerydl_sleep_request="${1#--twitter-archive-write-tweet-with-gallerydl-sleep-request=}"
 			shift || __expression_may_fail
-		elif [[ "$1" == "--gallerydl-"* ]]; then
-			__error "unknown gallery-dl argument %s" "$1"
+		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-"* ]]; then
+			__error "unknown twitter-archive-write-tweet-with-gallerydl argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
@@ -35,27 +35,38 @@ handler_gallerydl_parse_arguments() {
 	set -- "${arguments[@]}"
 }
 
-handler_gallerydl_log_failure() {
-	local url="$1" filename="$2" reason="$3"
+handler_twitter_archive_write_tweet_with_gallerydl_log_failure() {
+	local url="$1"
+	local filename="$2"
+	local reason="$3"
 	{
 		printf 'url: %s\n' "$url"
 		printf 'filename: %s\n' "$filename"
 		printf 'reason: %s\n' "$reason"
 		printf '\n'
 	} >> "$run_error_log"
+	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/twitter-archive-write-tweet-with-gallerydl-failed-items.log"
 }
 
-handler_gallerydl_tweet_complete() {
-	local directory="$1" json="$2" media_count files=0 tweet_id status=0
-	[[ ! -f "$json" ]] && return 1
+handler_twitter_archive_write_tweet_with_gallerydl_tweet_complete() {
+	local directory="$1"
+	local json="$2"
+	if [[ ! -f "$json" ]]; then
+		return 1
+	fi
 
+	local tweet_id
 	tweet_id="$(basename -- "$json" .json)"
 
 	local f
 	for f in "$directory"/*.part "$directory"/*.part.*; do
-		[[ -e "$f" ]] && return 1
+		if [[ -e "$f" ]]; then
+			return 1
+		fi
 	done
 
+	local status=0
+	local media_count
 	media_count="$(jq -r '
 		(.extended_entities.media // .entities.media // .media // [])
 		| if type == "array" then . else [] end
@@ -63,103 +74,117 @@ handler_gallerydl_tweet_complete() {
 		| unique_by(.id_str // .media_key // .media_url_https // .url)
 		| length
 	' -- "$json")" || status="$(abort_on_interrupt "$?")"
-
 	if (( status != 0 )); then
 		return "$status"
 	fi
 
 	media_count="${media_count:-0}"
-	[[ "$media_count" =~ ^[0-9]+$ ]] || media_count=0
+	if [[ ! "$media_count" =~ ^[0-9]+$ ]]; then
+		media_count=0
+	fi
 	if (( media_count == 0 )); then
 		return 0
 	fi
 
+	local files=0
 	for f in "$directory/${tweet_id}_"*; do
-		[[ ! -f "$f" ]] && continue
+		if [[ ! -f "$f" ]]; then
+			continue
+		fi
 		case "$f" in
 			*.part|*.part.*) continue ;;
 		esac
-		files="$((files + 1))" ||__expression_may_fail
+		files="$((files + 1))" || __expression_may_fail
 	done
 
 	(( files >= media_count ))
 }
 
-handler_gallerydl_backup_file() {
-	local file="$1" backup_directory="$2"
-	[[ ! -f "$file" ]] && return 0
+handler_twitter_archive_write_tweet_with_gallerydl_backup_file() {
+	local file="$1"
+	local backup_directory="$2"
+	if [[ ! -f "$file" ]]; then
+		return 0
+	fi
 
-	local hash ext name dest status=0
+	local status=0
+	local hash
 	hash="$(sha256sum -- "$file" | awk '{print $1}')" || status="$(abort_on_interrupt "$?")"
-
 	if (( status != 0 )); then
 		return "$status"
 	fi
-	[[ -z "$hash" ]] && return 1
+	if [[ -z "$hash" ]]; then
+		return 1
+	fi
 
-	ext="${file##*.}"
-	name="$hash.$ext.zip"
+	local ext="${file##*.}"
+	local name="$hash.$ext.zip"
 	mkdir --parents -- "$backup_directory"
-	dest="$backup_directory/$name"
+	local dest="$backup_directory/$name"
 	if [[ -f "$dest" ]]; then
 		return 0
 	fi
 
 	status=0
 	zip --no-wild --junk-paths --test "$dest" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
-
 	if (( status != 0 )); then
 		return "$status"
 	fi
+	if [[ ! -f "$dest" ]]; then
+		return 1
+	fi
 
-	[[ ! -f "$dest" ]] && return 1
 	__info "Wrote hash backup %s" "$dest"
 }
 
-handler_gallerydl_backup_leaf() {
-	local directory="$1" backup_directory file
-	[[ ! -d "$directory" ]] && return 0
-
-	if [[ -n "${handler_leaf_name["gallery-dl"]-}" ]]; then
-		backup_directory="$(dirname -- "$directory")/__backups"
-	else
-		backup_directory="$directory/__backups"
-	fi
-
-	mkdir --parents -- "$backup_directory"
-	for file in "$directory"/*; do
-		[[ ! -f "$file" ]] && continue
-		case "$file" in
-			*.part|*.part.*) continue ;;
-		esac
-
-		handler_gallerydl_backup_file "$file" "$backup_directory" || return $?
-	done
-}
-
-handler_gallerydl_is_status_url() {
-	local url="$1" host
-	host="${url#*://}"
-	host="${host%%/*}"
-	host="${host#www.}"
-	host="${host,,}"
-	[[ "$host" == "x.com" || "$host" == "twitter.com" ]] || return 1
-	[[ -n "$(twitter_status_id "$url")" ]]
-}
-
-function handler_gallerydl_download() {
-	local url="$1"
-	local json status=0 tweet_directory
-
-	if ! handler_gallerydl_is_status_url "$url"; then
-		__warn "method gallerydl is skipped, not an X status URL: %s" "$url"
+handler_twitter_archive_write_tweet_with_gallerydl_backup_leaf() {
+	local directory="$1"
+	if [[ ! -d "$directory" ]]; then
 		return 0
 	fi
 
+	local backup_directory
+	backup_directory="$(backup_directory_for "$directory" "$(handler_base_path "twitter-archive-write-tweet-with-gallerydl")" "${handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]-}")"
+
+	mkdir --parents -- "$backup_directory"
+	local file
+	for file in "$directory"/*; do
+		if [[ ! -f "$file" ]]; then
+			continue
+		fi
+		case "$file" in
+			*.part|*.part.*) continue ;;
+		esac
+		handler_twitter_archive_write_tweet_with_gallerydl_backup_file "$file" "$backup_directory" || return $?
+	done
+}
+
+handler_twitter_archive_write_tweet_with_gallerydl_is_status_url() {
+	local url="$1"
+	local host="${url#*://}"
+	host="${host%%/*}"
+	host="${host#www.}"
+	host="${host,,}"
+	if [[ "$host" != "x.com" && "$host" != "twitter.com" ]]; then
+		return 1
+	fi
+	[[ -n "$(twitter_status_id "$url")" ]]
+}
+
+function handler_twitter_archive_write_tweet_with_gallerydl_download() {
+	local url="$1"
+
+	if ! handler_twitter_archive_write_tweet_with_gallerydl_is_status_url "$url"; then
+		__warn "method twitter-archive-write-tweet-with-gallerydl is skipped, not an X status URL: %s" "$url"
+		return 0
+	fi
+
+	local json
 	json="$(gallerydl_json_for_url "$url")" || json=""
+	local tweet_directory
 	if [[ -n "$json" && -f "$json" ]]; then
 		tweet_directory="$(dirname -- "$json")"
-		if handler_gallerydl_tweet_complete "$tweet_directory" "$json" && ! $force_update_existing; then
+		if handler_twitter_archive_write_tweet_with_gallerydl_tweet_complete "$tweet_directory" "$json" && ! $force_update_existing; then
 			__verbose "gallery-dl skipped, files complete"
 			return 0
 		fi
@@ -168,7 +193,10 @@ function handler_gallerydl_download() {
 	local id_path="${queued_ids["$url"]-}"
 	if [[ -n "$id_path" ]]; then
 		tweet_directory="$(handler_leaf_directory "gallery-dl" "$id_path")"
-		handler_gallerydl_backup_leaf "$tweet_directory" || { __warn "gallery-dl backup failed for %s" "$url"; return $?; }
+		handler_twitter_archive_write_tweet_with_gallerydl_backup_leaf "$tweet_directory" || {
+			__warn "gallery-dl backup failed for %s" "$url"
+			return $?
+		}
 	fi
 	mkdir --parents -- "$gallerydl_dump_path"
 
@@ -180,11 +208,9 @@ function handler_gallerydl_download() {
 	local status=0
 	gallery-dl --verbose --config-ignore --cookies "$gallery_dl_cookie_file" --mtime-from-date --sleep "${gallerydl_sleep:-20-60}" --sleep-request "${gallerydl_sleep_request:-30-90}" --retries 6 --http-timeout 60.0 --limit-rate 5M --option downloader.mtime=false --option downloader.progress=5.0 --option downloader.part-directory="$part_directory" --option downloader.timeout=60.0 --option downloader.ytdl.module=yt_dlp --option extractor.base-directory="$gallerydl_dump_path/" --option extractor.path-restrict='{"\\":"⧹","/":"⧸","|":"￨",":":"꞉","*":"∗","?":"？","\"":"″","<":"﹤",">":"﹥"}' --option extractor.ytdl.enabled=true --option extractor.ytdl.module=yt_dlp --option extractor.ytdl.generic=false --option extractor.ytdl.config-file="$HOME/.config/yt-dlp/config" --option extractor.twitter.quoted=true --option extractor.twitter.unavailable=true --option extractor.twitter.cards=true --option extractor.twitter.retweets=true --option extractor.twitter.size=orig --option extractor.twitter.text-tweets=true --option extractor.twitter.twitpic=true --option extractor.twitter.directory='["{author[id]|user[id]}","{tweet_id}"]' --postprocessor metadata --postprocessor-option event=post --postprocessor-option filename="{tweet_id}.json" -- "$url" || status="$(abort_on_interrupt "$?")"
 
-	if (( status == 0 )); then
-		__success "gallery-dl finished %s" "$url"
-	else
-		handler_gallerydl_log_failure "$url" "$json" "gallery-dl exit $status"
-		__failure "gallery-dl failed for %s" "$url"
+	if (( status > 0 )); then
+		local logged_file="${json:-$tweet_directory}"
+		handler_twitter_archive_write_tweet_with_gallerydl_log_failure "$url" "$logged_file" "gallery-dl exit $status"
 	fi
 
 	return "$status"

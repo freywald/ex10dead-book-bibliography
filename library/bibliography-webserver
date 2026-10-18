@@ -36,7 +36,7 @@ function bibliography_webserver() {
 	show_extras=false
 	configuration_files=()
 
-	arguments=()
+	local -a arguments=()
 	while (($# > 0)); do
 		if [[ "$1" == "--debug" ]]; then
 			__debug=true
@@ -51,11 +51,17 @@ function bibliography_webserver() {
 			walk_archive=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--configuration-file" ]]; then
-			[[ -n "${2-}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+			if [[ -z "${2-}" ]]; then
+				__error "--configuration-file requires a path"
+				local_exit_failsafe
+			fi
 			configuration_files+=("$2")
 			shift 2 || __expression_may_fail
 		elif [[ "$1" == "--configuration-file="* ]]; then
-			[[ -n "${1#--configuration-file=}" ]] || { __error "--configuration-file requires a path"; local_exit_failsafe; }
+			if [[ -z "${1#--configuration-file=}" ]]; then
+				__error "--configuration-file requires a path"
+				local_exit_failsafe
+			fi
 			configuration_files+=("${1#--configuration-file=}")
 			shift || __expression_may_fail
 		elif [[ "$1" == "--extras" ]]; then
@@ -73,8 +79,12 @@ function bibliography_webserver() {
 	declare -gA handler_output_path=()
 	declare -gA handler_leaf_name=()
 
-	local default_configuration_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
-	[[ ! -f "$default_configuration_file" ]] && { __error "default configuration file not found: %s" "$default_configuration_file"; local_exit_failsafe; }
+	local default_configuration_file
+	default_configuration_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
+	if [[ ! -f "$default_configuration_file" ]]; then
+		__error "default configuration file not found: %s" "$default_configuration_file"
+		local_exit_failsafe
+	fi
 
 	__verbose "loading configuration file %s" "$default_configuration_file"
 	load_configuration_file "$default_configuration_file"
@@ -82,17 +92,30 @@ function bibliography_webserver() {
 	local configuration_file
 	for configuration_file in "${configuration_files[@]}"; do
 		__verbose "loading configuration file %s" "$configuration_file"
-		[[ ! -f "$configuration_file" ]] && { __error "configuration file %s does not exist" "$configuration_file"; local_exit_failsafe; }
+		if [[ ! -f "$configuration_file" ]]; then
+			__error "configuration file %s does not exist" "$configuration_file"
+			local_exit_failsafe
+		fi
 		load_configuration_file "$configuration_file"
 	done
 
-	[[ -n "$archive_path" ]] || { __error "archive_path is required"; local_exit_failsafe; }
-	[[ -n "$bibliography_name" ]] || { __error "bibliography_name is required"; local_exit_failsafe; }
-	[[ -n "$bibliography_sources_path" ]] || { __error "bibliography_sources_path is required"; local_exit_failsafe; }
+	if [[ -z "$archive_path" ]]; then
+		__error "archive_path is required"
+		local_exit_failsafe
+	fi
+	if [[ -z "$bibliography_name" ]]; then
+		__error "bibliography_name is required"
+		local_exit_failsafe
+	fi
+	if [[ -z "$bibliography_sources_path" ]]; then
+		__error "bibliography_sources_path is required"
+		local_exit_failsafe
+	fi
 
+	local given_url_identifier
 	given_url_identifier="${1-}"
 	if [[ -z "$given_url_identifier" ]]; then
-		 walk_archive=true
+		walk_archive=true
 	fi
 
 	__info "[%s] building web link🌲︎…" "__$__current_script_name"
@@ -113,6 +136,11 @@ function bibliography_webserver() {
 	generate_tree
 	verify_tree || __failure "Tree verification failed!"
 
+	local -a configuration_arguments=()
+	for configuration_file in "${configuration_files[@]}"; do
+		configuration_arguments+=(--configuration-file "$configuration_file")
+	done
+
 	if $walk_archive; then
 		__heading "Starting webserver for the whole archive…"
 		python3 "$python_webserver_library_path" --archive-root "$archive_path" --port "8080" --host "127.0.0.1" "${configuration_arguments[@]}"
@@ -125,24 +153,24 @@ function bibliography_webserver() {
 		local_exit_failsafe
 	fi
 
+	local index
 	index=""
 	if ! index="$(get_entry_index_by_keyvalue "_id" "$given_url_identifier")"; then
-		echo "ERROR: id '$given_url_identifier' cannot be found" >&2
-		exit 1
+		__error "ERROR: id '%s' cannot be found" "$given_url_identifier"
+		local_exit_failsafe
 	fi
 
+	local found_url
 	found_url="$(get_value "$index" "_")"
 	found_url="${found_url-}"
 
+	local entry_zip
 	entry_zip="$archive_path/$given_url_identifier.zip"
+	local work_directory
 	work_directory="$archive_path/$given_url_identifier"
 
+	local -a extra_zips
 	extra_zips=( "$work_directory"/*.zip )
-
-	declare -a configuration_arguments=()
-	for configuration_file in "${configuration_files[@]}"; do
-		configuration_arguments+=(--configuration-file "$configuration_file")
-	done
 
 	if ! $show_extras; then
 		if [[ ! -f "$entry_zip" ]]; then
@@ -154,14 +182,15 @@ function bibliography_webserver() {
 		fi
 		pick_and_serve_zip "$entry_zip" "$found_url"
 	else
-		menu_paths=()
-		menu_labels=()
+		local -a menu_paths=()
+		local -a menu_labels=()
 
 		if [[ -f "$entry_zip" ]]; then
 			menu_paths+=("$entry_zip")
 			menu_labels+=("main entry  $(basename -- "$entry_zip")")
 		fi
 
+		local extra
 		for extra in "${extra_zips[@]+"${extra_zips[@]}"}"; do
 			menu_paths+=("$extra")
 			menu_labels+=("extra       $(basename -- "$extra")")
@@ -172,12 +201,17 @@ function bibliography_webserver() {
 			local_exit_failsafe
 		fi
 
+		local choice=""
+		local selected
+		local selected_label
 		while true; do
 			echo
 			__heading "Archives for %s" "$given_url_identifier"
-			i=0
+			local i
 			for ((i = 0; i < ${#menu_paths[@]}; i++)); do
-				printf "  %2d  %s\n" "$((i + 1))||__expression_may_fail" "${menu_labels[$i]}"
+				local num
+				num="$((i + 1))" || __expression_may_fail
+				printf "  %2d  %s\n" "$num" "${menu_labels["$i"]}"
 			done
 			echo
 
@@ -190,8 +224,8 @@ function bibliography_webserver() {
 				continue
 			fi
 
-			selected="${menu_paths[choice - 1]}"
-			selected_label="${menu_labels[choice - 1]}"
+			selected="${menu_paths["$((choice - 1))"]}"
+			selected_label="${menu_labels["$((choice - 1))"]}"
 			if __confirm "Open ${selected_label} ?"; then
 				pick_and_serve_zip "$selected" "$selected_label"
 				break
