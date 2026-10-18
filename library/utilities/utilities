@@ -165,7 +165,7 @@ archive_status_etag_note() {
 handler_id_directory() {
 	local name="$1" id="$2" base
 	base="$(handler_base_path "$name")"
-	printf '%s\n' "$base/$id"
+	printf '%s\n' "$base/$reserved_children_name/$reserved_nodes_name/$id"
 }
 
 handler_leaf_directory() {
@@ -182,9 +182,9 @@ handler_leaf_directory() {
 
 	id_directory="$(handler_id_directory "$name" "$id")"
 	if [[ -n "$leaf" ]]; then
-		printf '%s\n' "$id_directory/$leaf"
+		printf '%s\n' "$id_directory/$reserved_data_name/$leaf"
 	else
-		printf '%s\n' "$id_directory"
+		printf '%s\n' "$id_directory/$reserved_data_name"
 	fi
 }
 

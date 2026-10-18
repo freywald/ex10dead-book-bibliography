@@ -630,12 +630,27 @@ print_archive_status() {
 			if [[ -f "$file" ]]; then
 				dump_directory="$(dirname -- "$file")"
 			fi
-			local dump_id
-			dump_id="$(basename -- "$dump_directory")"
-			if [[ -f "$dump_directory/$dump_id.json" ]]; then
-				continue
+			if [[ "$(basename -- "$dump_directory")" == "$reserved_data_name" ]]; then
+				local tweet_directory
+				tweet_directory="$(dirname -- "$dump_directory")"
+				local tweet_id
+				tweet_id="$(basename -- "$tweet_directory")"
+				if [[ -f "$dump_directory/$tweet_id.json" ]]; then
+					continue
+				fi
 			fi
 		fi
+#		if [[ "$relative_file" == "$dump_name"/* ]]; then
+#			local dump_directory="$file"
+#			if [[ -f "$file" ]]; then
+#				dump_directory="$(dirname -- "$file")"
+#			fi
+#			local dump_id
+#			dump_id="$(basename -- "$dump_directory")"
+#			if [[ -f "$dump_directory/$dump_id.json" ]]; then
+#				continue
+#			fi
+#		fi
 
 		case "$base" in
 			*.zip|*.zip.etag|*.singlefile.html|*.json|*.JSON|screenshot.png|reconstructed-twitter-thread.html) ;;

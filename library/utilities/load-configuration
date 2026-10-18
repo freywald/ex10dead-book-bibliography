@@ -2,6 +2,9 @@
 
 old_archive_path=""
 old_bibliography_sources_path=""
+readonly reserved_data_name="d"
+readonly reserved_children_name="c"
+readonly reserved_nodes_name="n"
 
 load_configuration_file() {
 	local file="$1"
