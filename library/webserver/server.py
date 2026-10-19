@@ -4,6 +4,7 @@ import socketserver
 import argparse
 import sys
 import os
+import subprocess
 import signal
 import json
 import html
@@ -12,6 +13,10 @@ import zipfile
 from urllib.parse import unquote, quote
 import re
 EXTRA_STEM = re.compile(r"-[0-9a-f]{12}$")
+
+RESERVED_CHILDREN = "c"
+RESERVED_NODES = "n"
+RESERVED_DATA = "d"
 
 def is_extra_prefix(prefix: str) -> bool:
 	leaf = prefix.rstrip("/").rsplit("/", 1)[-1]
@@ -134,13 +139,38 @@ class ArchiveRootHandler(NoCacheHTTPRequestHandler):
 			self._zip_cache[key] = zipfile.ZipFile(key)
 		return self._zip_cache[key]
 
+	# def handler_file(self, handler: str, *parts: str) -> Path:
+	# 	slot = self.layout.get(handler, {})
+	# 	leaf = slot.get("leaf_folder") or ""
+	# 	base = self.archive_root / str(slot.get("output_path", "web-archive")).strip("/")
+	# 	*id_parts, filename = parts if parts else (("",))
+	# 	pieces = [base, "c", "n", *id_parts, "d"]
+	# 	if leaf:
+	# 		pieces.append(leaf)
+	# 	if filename:
+	# 		pieces.append(filename)
+	# 	return Path(*pieces)
+
 	def handler_file(self, handler: str, *parts: str) -> Path:
 		slot = self.layout.get(handler, {})
 		leaf = slot.get("leaf_folder") or ""
 		base = self.archive_root / slot.get("output_path", "web-archive")
+		if not parts:
+			return base / RESERVED_CHILDREN / RESERVED_NODES
+		path = base / RESERVED_CHILDREN / RESERVED_NODES
+		path = path.joinpath(*parts[:-1])
+		path = path / RESERVED_DATA
 		if leaf:
-			return base.joinpath(*parts[:-1], leaf, parts[-1]) if parts else base / leaf
-		return base.joinpath(*parts)
+			path = path / leaf
+		return path / parts[-1]
+
+	# def handler_file(self, handler: str, *parts: str) -> Path:
+	# 	slot = self.layout.get(handler, {})
+	# 	leaf = slot.get("leaf_folder") or ""
+	# 	base = self.archive_root / slot.get("output_path", "web-archive")
+	# 	if leaf:
+	# 		return base.joinpath(*parts[:-1], leaf, parts[-1]) if parts else base / leaf
+	# 	return base.joinpath(*parts)
 
 	def _twitter_json_section(self) -> str:
 		if self.archive_root is None:
@@ -336,12 +366,12 @@ a.sf{color:#7a2ea0}
 
 def load_layout(configuration_files):
 	layout = {
-		"gallery-dl": {"output_path": "dump", "leaf_folder": ""},
-		"screenshot": {"output_path": "web-archive", "leaf_folder": "screenshot"},
-		"wget": {"output_path": "web-archive", "leaf_folder": "wget"},
-		"wget-text": {"output_path": "web-archive", "leaf_folder": "wget-text", "output_as_zip": True},
-		"singlefile": {"output_path": "web-archive", "leaf_folder": "singlefile"},
-		"json-to-html": {"output_path": "web-archive", "leaf_folder": "json-to-html"},
+		"twitter-archive-write-tweet-with-gallerydl": {"output_path": "gallery-dl", "leaf_folder": "gallery-dl"},
+		"webpage-archive-write-screenshot-with-screenshot-scraper": {"output_path": "web-archive", "leaf_folder": "screenshot"},
+		"webpage-archive-write-webpage-with-wget": {"output_path": "web-archive", "leaf_folder": "wget"},
+		"webpage-archive-write-webpage-light-with-wget": {"output_path": "web-archive", "leaf_folder": "wget-text", "output_as_zip": True},
+		"webpage-archive-write-html-with-singlefile": {"output_path": "web-archive", "leaf_folder": "singlefile"},
+		"twitter-archive-export-write-conversation-reconstructed-html": {"output_path": "web-archive", "leaf_folder": "json-to-html"},
 	}
 	for configuration_file in configuration_files or []:
 		raw = subprocess.check_output(["expand", "-t", "4", configuration_file])
