@@ -49,6 +49,7 @@ handler_webpage_archive_write_webpage_with_wget_log_failure() {
 		printf '\n'
 	} >> "$run_error_log"
 	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$run_directory/webpage-archive-write-webpage-with-wget-failed-items.log"
+	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$failed_items_log"
 }
 
 handler_webpage_archive_write_webpage_with_wget_is_html_document() {
@@ -101,13 +102,13 @@ handler_webpage_archive_write_webpage_with_wget_download() {
 	__debug "$headers"
 
 	local last_modified
-	last_modified="$(printf '%s\n' "$headers" | { grep --ignore-case '^last-modified:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2-)"
+	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2-)"
 	last_modified="${last_modified-}"
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
 
 	local etag
-	etag="$(printf '%s\n' "$headers" | { grep --ignore-case '^etag:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
+	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
 
 	local remote_mtime=0
 	status=0

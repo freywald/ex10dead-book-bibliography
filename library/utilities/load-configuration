@@ -2,9 +2,14 @@
 
 old_archive_path=""
 old_bibliography_sources_path=""
-readonly reserved_data_name="d"
-readonly reserved_children_name="c"
-readonly reserved_nodes_name="n"
+
+#readonly reserved_data_name="d"
+#readonly reserved_children_name="c"
+#readonly reserved_nodes_name="n"
+
+readonly reserved_data_name=""
+readonly reserved_children_name=""
+readonly reserved_nodes_name=""
 
 load_configuration_file() {
 	local file="$1"
@@ -34,6 +39,7 @@ load_configuration_file() {
 	else
 		archive_path="$old_archive_path/$bibliography_name"
 	fi
+	archive_path="$(__normalize_path_slashes "$archive_path/")"
 
 	if jq --exit-status 'has("bibliography_sources_path")' <<<"$json" >"/dev/null"; then
 		value="$(jq --raw-output '.bibliography_sources_path // ""' <<<"$json")"
@@ -42,6 +48,7 @@ load_configuration_file() {
 	else
 		bibliography_sources_path="$old_bibliography_sources_path/$bibliography_name"
 	fi
+	bibliography_sources_path="$(__normalize_path_slashes "$bibliography_sources_path/")"
 
 	if jq --exit-status 'has("temporary_files_path")' <<<"$json" >"/dev/null"; then
 		temporary_files_path="$(jq --raw-output '.temporary_files_path // ""' <<<"$json")"

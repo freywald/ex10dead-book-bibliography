@@ -88,23 +88,27 @@ setup_run_logging() {
 	run_error_log="$run_directory/error.log"
 	run_default_log="$run_directory/default.log"
 	failed_items_log="$run_directory/failed-items.log"
+
 	mkdir --parents -- "$run_directory"
+
 	: >| "$run_error_log"
 	: >| "$run_default_log"
+	: >| "$failed_items_log"
 
 	declare -ga run_failed_item_logs=()
 	local handler_name
-	local log_path
 	for handler_name in "twitter-archive-write-tweet-with-gallerydl" "webpage-archive-write-webpage-with-wget" "webpage-archive-write-webpage-light-with-wget" "webpage-archive-write-screenshot-with-screenshot-scraper" "webpage-archive-write-html-with-singlefile" "twitter-archive-export-write-conversation-reconstructed-html" "twitter-manage-archive-cleanup-duplicate-files"; do
-		log_path="$run_directory/${handler_name}-failed-items.log"
+		local log_path
+		log_path="$run_directory/$handler_name-failed-items.log"
+
 		: >| "$log_path"
 		run_failed_item_logs+=("$log_path")
 	done
 
-	replace_symlink "$run_directory" "$archive_path/run/current"
-	replace_symlink "$run_default_log" "$archive_path/default.log"
-	replace_symlink "$run_error_log" "$archive_path/error.log"
-	replace_symlink "$failed_items_log" "$archive_path/failed-items.log"
+	replace_symlink "${run_directory#"$archive_path/"}" "$archive_path/run/current"
+	replace_symlink "${run_default_log#"$archive_path/"}" "$archive_path/default.log"
+	replace_symlink "${run_error_log#"$archive_path/"}" "$archive_path/error.log"
+	replace_symlink "${failed_items_log#"$archive_path/"}" "$archive_path/failed-items.log"
 
 	__setup_logging "$run_default_log" "$run_error_log"
 }
@@ -132,7 +136,7 @@ close_run_logging() {
 		replace_symlink "$placeholder" "$archive_path/error.log"
 	fi
 	if [[ ! -f "$failed_items_log" ]]; then
-		placeholder="$archive_path/run/empty-error.log"
+		placeholder="$archive_path/run/empty-failed-items.log"
 		: >| "$placeholder"
 		replace_symlink "$placeholder" "$archive_path/failed-items.log"
 	fi
@@ -230,10 +234,14 @@ print_archive_status() {
 
 	local queued_url
 	for queued_url in "${!queued_urls[@]}"; do
-		url_count=$((url_count + 1)) || __expression_may_fail
-		local id="${queued_ids["$queued_url"]}"
+		url_count="$((url_count + 1))" || __expression_may_fail
+
+		local id
+		id="${queued_ids["$queued_url"]}"
+
 		local work_directory
 		work_directory="$(handler_id_directory "webpage-archive-write-webpage-with-wget" "$id")"
+
 		local zip_archive
 		zip_archive="$(archive_zip_path "$queued_url" "$id" "${queued_kinds["$queued_url"]}" "webpage-archive-write-webpage-with-wget")"
 
@@ -382,12 +390,12 @@ print_archive_status() {
 			else
 				local last_modified
 
-				last_modified="$(printf '%s\n' "$headers" | { grep --ignore-case '^last-modified:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=":" --fields="2-" )"
+				last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=":" --fields="2-" )"
 				last_modified="${last_modified-}"
 				last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 				last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
 				local etag
-				etag="$(printf '%s\n' "$headers" | { grep --ignore-case '^etag:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
+				etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
 				local remote_mtime=0
 				status=0
 				if [[ -n "$last_modified" ]]; then
@@ -427,13 +435,6 @@ print_archive_status() {
 			expected_archive_paths["$(archive_relative "$(handler_id_directory "$handler_name" "$id")")"]=1
 		done
 
-#		if $archive_run_make_screenshot || $archive_run_wget || $archive_run_singlefile || $archive_run_wget_text || $archive_run_json_to_html; then
-#			expected_archive_paths["$(archive_relative "$(handler_id_directory "webpage-archive-write-webpage-with-wget" "$id")")"]=1
-#		fi
-#		if $archive_run_gallerydl; then
-#			expected_archive_paths["$(archive_relative "$(handler_id_directory "twitter-archive-write-tweet-with-gallerydl" "$id")")"]=1
-#		fi
-
 		local leaf
 		leaf="${handler_leaf_name["webpage-archive-write-webpage-with-wget"]-"webpage-archive-write-webpage-with-wget"}"
 		local stem_name
@@ -451,7 +452,7 @@ print_archive_status() {
 			continue
 		fi
 
-		shown=$((shown + 1)) || __expression_may_fail
+		shown="$((shown + 1))" || __expression_may_fail
 
 		__heading "%s" "$queued_url"
 
@@ -535,9 +536,7 @@ print_archive_status() {
 		fi
 	done
 
-	if (( shown == 0 )) && { $show_missing || $show_missing_wget || $show_missing_singlefile \
-		|| $show_missing_screenshot || $show_missing_gallerydl || $show_missing_wget_text \
-		|| $show_missing_thread_html || $show_missing_download; }; then
+	if (( shown == 0 )) && { $show_missing || $show_missing_wget || $show_missing_singlefile || $show_missing_screenshot || $show_missing_gallerydl || $show_missing_wget_text || $show_missing_thread_html || $show_missing_download; }; then
 		__info "no missing entries"
 	fi
 
@@ -1165,13 +1164,13 @@ bibliography_archive() {
 	bibliography_sources_path=""
 
 	if [[ $# -gt 0 && "$1" != --* ]]; then
-		archive_path="$1"
+		archive_path="$(__normalize_path_slashes "$1/")"
 		shift || __expression_may_fail
 		if [[ $# -gt 0 && "$1" != --* ]]; then
 			bibliography_name="$1"
 			shift || __expression_may_fail
 			if [[ $# -gt 0 && "$1" != --* ]]; then
-				bibliography_sources_path="$1"
+				bibliography_sources_path="$(__normalize_path_slashes "$1/")"
 				shift || __expression_may_fail
 			fi
 		fi
@@ -1447,6 +1446,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_gallerydl=true
 			load_handler "./handlers/twitter-archive-write-tweet-with-gallerydl"
@@ -1458,6 +1458,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_gallerydl=true
 			load_handler "./handlers/twitter-archive-write-tweet-with-gallerydl"
@@ -1468,6 +1469,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_wget=true
 			load_handler "./handlers/webpage-archive-write-webpage-with-wget"
@@ -1479,6 +1481,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_wget=true
 			load_handler "./handlers/webpage-archive-write-webpage-with-wget"
@@ -1489,6 +1492,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_wget_text=true
 			load_handler "./handlers/webpage-archive-write-webpage-light-with-wget"
@@ -1500,6 +1504,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_wget_text=true
 			load_handler "./handlers/webpage-archive-write-webpage-light-with-wget"
@@ -1510,6 +1515,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_make_screenshot=true
 			load_handler "./handlers/webpage-archive-write-screenshot-with-screenshot-scraper"
@@ -1521,6 +1527,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_make_screenshot=true
 			load_handler "./handlers/webpage-archive-write-screenshot-with-screenshot-scraper"
@@ -1531,6 +1538,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_singlefile=true
 			load_handler "./handlers/webpage-archive-write-html-with-singlefile"
@@ -1542,6 +1550,7 @@ bibliography_archive() {
 				__error "%s requires a path" "$1"
 				local_exit_failsafe
 			fi
+			update_archive=true
 			from_file_active=true
 			archive_run_singlefile=true
 			load_handler "./handlers/webpage-archive-write-html-with-singlefile"

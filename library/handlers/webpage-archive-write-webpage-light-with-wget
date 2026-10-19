@@ -58,6 +58,7 @@ handler_webpage_archive_write_webpage_light_with_wget_log_failure() {
 		printf '\n'
 	} >> "$run_error_log"
 	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$run_directory/webpage-archive-write-webpage-light-with-wget-failed-items.log"
+	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$failed_items_log"
 }
 
 handler_webpage_archive_write_webpage_light_with_wget_backup() {

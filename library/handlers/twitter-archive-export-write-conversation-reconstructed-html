@@ -36,6 +36,7 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_log_failure
 		printf '\n'
 	} >> "$run_error_log"
 	printf '%s\n%s\n%s\n\n' "# filename=$filename" "# json_file=$json_file" "$url" >> "$run_directory/twitter-archive-export-write-conversation-reconstructed-html-failed-items.log"
+	printf '%s\n%s\n%s\n\n' "# filename=$filename" "# json_file=$json_file" "$url" >> "$failed_items_log"
 }
 
 handler_twitter_archive_export_write_conversation_reconstructed_html_escape() {

@@ -40,6 +40,7 @@ handler_webpage_archive_write_html_with_singlefile_log_failure() {
 		printf '\n'
 	} >> "$run_error_log"
 	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$run_directory/webpage-archive-write-html-with-singlefile-failed-items.log"
+	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$failed_items_log"
 }
 
 handler_webpage_archive_write_html_with_singlefile_backup_file() {

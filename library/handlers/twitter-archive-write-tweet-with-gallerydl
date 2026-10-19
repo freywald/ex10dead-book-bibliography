@@ -46,6 +46,7 @@ handler_twitter_archive_write_tweet_with_gallerydl_log_failure() {
 		printf '\n'
 	} >> "$run_error_log"
 	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$run_directory/twitter-archive-write-tweet-with-gallerydl-failed-items.log"
+	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$failed_items_log"
 }
 
 handler_twitter_archive_write_tweet_with_gallerydl_tweet_complete() {
@@ -215,7 +216,7 @@ function handler_twitter_archive_write_tweet_with_gallerydl_download() {
 	gallery-dl --verbose --config-ignore --cookies "$gallery_dl_cookie_file" --mtime-from-date --sleep "${gallerydl_sleep:-20-60}" --sleep-request "${gallerydl_sleep_request:-30-90}" --retries 6 --http-timeout 60.0 --limit-rate 5M --option downloader.mtime=false --option downloader.progress=5.0 --option downloader.part-directory="$part_directory" --option downloader.timeout=60.0 --option downloader.ytdl.module=yt_dlp --option extractor.base-directory="$twitter_archive_write_tweet_with_gallerydl_path/" --option extractor.path-restrict='{"\\":"⧹","/":"⧸","|":"￨",":":"꞉","*":"∗","?":"？","\"":"″","<":"﹤",">":"﹥"}' --option extractor.ytdl.enabled=true --option extractor.ytdl.module=yt_dlp --option extractor.ytdl.generic=false --option extractor.ytdl.config-file="$HOME/.config/yt-dlp/config" --option extractor.twitter.quoted=true --option extractor.twitter.unavailable=true --option extractor.twitter.cards=true --option extractor.twitter.retweets=true --option extractor.twitter.size=orig --option extractor.twitter.text-tweets=true --option extractor.twitter.twitpic=true --option extractor.twitter.directory="$gallerydl_directory_json" --postprocessor metadata --postprocessor-option event=post --postprocessor-option filename="{tweet_id}.json" -- "$url" || status="$(abort_on_interrupt "$?")"
 
 	if (( status > 0 )); then
-		local logged_file="${json:-$tweet_directory}"
+		local logged_file="${json:-"$tweet_directory"}"
 		handler_twitter_archive_write_tweet_with_gallerydl_log_failure "$url" "$logged_file" "gallery-dl exit $status"
 	fi
 
