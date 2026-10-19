@@ -59,7 +59,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_parse_arguments
 		fi
 	done
 
-	set -- "${arguments[@]}"
+	handler_remaining_arguments=("${arguments[@]}")
 }
 
 handler_webpage_archive_write_screenshot_with_screenshot_scraper_log_failure() {
@@ -69,20 +69,21 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_log_failure() {
 	local output_path="$4"
 	local json_path
 	json_path="$(gallerydl_json_for_url "$url")" || json_path=""
+
 	{
 		printf 'url: %s\n' "$url"
 		printf 'filename: %s\n' "$output_path"
-		printf 'json: %s\n' "$json_path"
+		printf 'json file: %s\n' "$json_path"
 		printf 'reason: %s\n' "$reason"
 		printf '%s\n' '--- shot-scraper ---'
 		[[ -f "$tool_log" ]] && cat -- "$tool_log"
 		printf '\n'
 	} >> "$run_error_log"
-	printf '%s\n%s\n' "$url" "$output_path" >> "$run_directory/webpage-archive-write-screenshot-with-screenshot-scraper-failed-items.log"
-	if [[ -n "$json_path" ]] && ! grep --quiet --line-regexp --fixed-strings -- "$json_path" "$run_missing_screenshots_log"; then
-		printf '%s\n' "$url" >> "$run_missing_screenshots_log"
-		printf '%s\n\n' "$json_path" >> "$run_missing_screenshots_log"
-	fi
+	printf '%s\n%s\n%s\n\n' "# output_path=$output_path" "# json_path=$json_path" "$url" >> "$run_directory/webpage-archive-write-screenshot-with-screenshot-scraper-failed-items.log"
+#	if [[ -n "$json_path" ]] && ! grep --quiet --line-regexp --fixed-strings -- "$json_path" "$run_missing_screenshots_log"; then
+#		printf '%s\n' "$url" >> "$run_missing_screenshots_log"
+#		printf '%s\n\n' "$json_path" >> "$run_missing_screenshots_log"
+#	fi
 }
 
 handler_webpage_archive_write_screenshot_with_screenshot_scraper_backup_file() {

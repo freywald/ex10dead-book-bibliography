@@ -44,7 +44,7 @@ handler_webpage_archive_write_webpage_light_with_wget_parse_arguments() {
 		fi
 	done
 
-	set -- "${arguments[@]}"
+	handler_remaining_arguments=("${arguments[@]}")
 }
 
 handler_webpage_archive_write_webpage_light_with_wget_log_failure() {
@@ -57,7 +57,7 @@ handler_webpage_archive_write_webpage_light_with_wget_log_failure() {
 		printf 'reason: %s\n' "$reason"
 		printf '\n'
 	} >> "$run_error_log"
-	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/webpage-archive-write-webpage-light-with-wget-failed-items.log"
+	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$run_directory/webpage-archive-write-webpage-light-with-wget-failed-items.log"
 }
 
 handler_webpage_archive_write_webpage_light_with_wget_backup() {

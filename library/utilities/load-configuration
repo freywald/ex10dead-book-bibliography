@@ -46,33 +46,34 @@ load_configuration_file() {
 	if jq --exit-status 'has("temporary_files_path")' <<<"$json" >"/dev/null"; then
 		temporary_files_path="$(jq --raw-output '.temporary_files_path // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("page_script")' <<<"$json" >"/dev/null"; then
-		screenshot_page_script="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.page_script // ""' <<<"$json")"
+
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("page_script")' <<<"$json" >"/dev/null"; then
+		screenshot_page_script="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].page_script // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("maximum_height")' <<<"$json" >"/dev/null"; then
-		screenshot_maximum_height="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.maximum_height // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("maximum_height")' <<<"$json" >"/dev/null"; then
+		screenshot_maximum_height="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].maximum_height // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("width")' <<<"$json" >"/dev/null"; then
-		screenshot_width="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.width // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("width")' <<<"$json" >"/dev/null"; then
+		screenshot_width="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].width // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("viewport_height")' <<<"$json" >"/dev/null"; then
-		screenshot_viewport_height="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.viewport_height // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("viewport_height")' <<<"$json" >"/dev/null"; then
+		screenshot_viewport_height="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].viewport_height // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("browser_device_pixel_ratio")' <<<"$json" >"/dev/null"; then
-		screenshot_browser_device_pixel_ratio="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.browser_device_pixel_ratio // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("browser_device_pixel_ratio")' <<<"$json" >"/dev/null"; then
+		screenshot_browser_device_pixel_ratio="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].browser_device_pixel_ratio // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("zoom")' <<<"$json" >"/dev/null"; then
-		screenshot_zoom="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.zoom // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("zoom")' <<<"$json" >"/dev/null"; then
+		screenshot_zoom="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].zoom // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("reply_count")' <<<"$json" >"/dev/null"; then
-		screenshot_reply_count="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.reply_count // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("reply_count")' <<<"$json" >"/dev/null"; then
+		screenshot_reply_count="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].reply_count // ""' <<<"$json")"
 	fi
 
-	if jq --exit-status '.handlers.webpage-archive-write-webpage-with-wget | has("wait")' <<<"$json" >"/dev/null"; then
-		wget_wait="$(jq --raw-output '.handlers.webpage-archive-write-webpage-with-wget.wait // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-with-wget"] | has("wait")' <<<"$json" >"/dev/null"; then
+		wget_wait="$(jq --raw-output '.handlers["webpage-archive-write-webpage-with-wget"].wait // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-webpage-with-wget | has("limit_rate")' <<<"$json" >"/dev/null"; then
-		wget_limit_rate="$(jq --raw-output '.handlers.webpage-archive-write-webpage-with-wget.limit_rate // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-with-wget"] | has("limit_rate")' <<<"$json" >"/dev/null"; then
+		wget_limit_rate="$(jq --raw-output '.handlers["webpage-archive-write-webpage-with-wget"].limit_rate // ""' <<<"$json")"
 	fi
 
 	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("arguments_file")' <<<"$json" >"/dev/null"; then
@@ -85,8 +86,8 @@ load_configuration_file() {
 		done < <(jq --raw-output '.handlers["webpage-archive-write-webpage-light-with-wget"].arguments[]? // empty' <<<"$json" ||__expression_may_fail)
 	fi
 
-	if jq --exit-status '.handlers.webpage-archive-write-html-with-singlefile | has("wait_until")' <<<"$json" >"/dev/null"; then
-		singlefile_wait_until="$(jq --raw-output '.handlers.webpage-archive-write-html-with-singlefile.wait_until // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-html-with-singlefile"] | has("wait_until")' <<<"$json" >"/dev/null"; then
+		singlefile_wait_until="$(jq --raw-output '.handlers["webpage-archive-write-html-with-singlefile"].wait_until // ""' <<<"$json")"
 	fi
 
 	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("output_as_zip")' <<<"$json" >"/dev/null"; then
@@ -94,7 +95,7 @@ load_configuration_file() {
 	fi
 
 	local name
-	for name in twitter-archive-write-tweet-with-gallerydl webpage-archive-write-webpage-with-wget webpage-archive-write-webpage-light-with-wget webpage-archive-write-screenshot-with-screenshot-scraper webpage-archive-write-html-with-singlefile twitter-archive-export-write-conversation-reconstructed-html; do
+	for name in twitter-archive-write-tweet-with-gallerydl webpage-archive-write-webpage-with-wget webpage-archive-write-webpage-light-with-wget webpage-archive-write-screenshot-with-screenshot-scraper webpage-archive-write-html-with-singlefile twitter-archive-export-write-conversation-reconstructed-html twitter-manage-archive-cleanup-duplicate-files; do
 		if jq --exit-status --arg n "$name" '.handlers[$n] | has("enabled")' <<<"$json" >"/dev/null"; then
 			handler_enabled["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].enabled' <<<"$json")"
 		fi
@@ -106,22 +107,27 @@ load_configuration_file() {
 		if jq --exit-status --arg n "$name" '.handlers[$n] | has("leaf_folder")' <<<"$json" >"/dev/null"; then
 			handler_leaf_name["$name"]="$(jq --raw-output --arg n "$name" '.handlers[$n].leaf_folder // ""' <<<"$json")"
 		fi
+
 	done
+
+	if jq --exit-status '.handlers["twitter-manage-archive-cleanup-duplicate-files"] | has("trash_path")' <<<"$json" >"/dev/null"; then
+		cleanup_trash_path="$(jq --raw-output '.handlers["twitter-manage-archive-cleanup-duplicate-files"].trash_path // ""' <<<"$json")"
+	fi
 
 	if jq --exit-status '.handlers["twitter-archive-write-tweet-with-gallerydl"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
 		gallery_dl_cookie_file="$(jq --raw-output '.handlers["twitter-archive-write-tweet-with-gallerydl"].cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-webpage-with-wget | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		wget_cookie_file="$(jq --raw-output '.handlers.webpage-archive-write-webpage-with-wget.cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-webpage-with-wget"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		wget_cookie_file="$(jq --raw-output '.handlers["webpage-archive-write-webpage-with-wget"].cookie_file // ""' <<<"$json")"
 	fi
 	if jq --exit-status '.handlers["webpage-archive-write-webpage-light-with-wget"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
 		wget_text_cookie_file="$(jq --raw-output '.handlers["webpage-archive-write-webpage-light-with-wget"].cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		screenshot_cookie_file="$(jq --raw-output '.handlers.webpage-archive-write-screenshot-with-screenshot-scraper.cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		screenshot_cookie_file="$(jq --raw-output '.handlers["webpage-archive-write-screenshot-with-screenshot-scraper"].cookie_file // ""' <<<"$json")"
 	fi
-	if jq --exit-status '.handlers.webpage-archive-write-html-with-singlefile | has("cookie_file")' <<<"$json" >"/dev/null"; then
-		singlefile_cookie_file="$(jq --raw-output '.handlers.webpage-archive-write-html-with-singlefile.cookie_file // ""' <<<"$json")"
+	if jq --exit-status '.handlers["webpage-archive-write-html-with-singlefile"] | has("cookie_file")' <<<"$json" >"/dev/null"; then
+		singlefile_cookie_file="$(jq --raw-output '.handlers["webpage-archive-write-html-with-singlefile"].cookie_file // ""' <<<"$json")"
 	fi
 	if jq --exit-status '.handlers["twitter-archive-write-tweet-with-gallerydl"] | has("leaf_folder")' <<<"$json" >"/dev/null"; then
 		handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]="$(jq --raw-output '.handlers["twitter-archive-write-tweet-with-gallerydl"].leaf_folder // ""' <<<"$json")"

@@ -300,7 +300,7 @@ print_archive_status() {
 		if $wget_text_output_as_zip; then
 			wget_text_target="$(archive_zip_path "$queued_url" "$id" "${queued_kinds["$queued_url"]}" "webpage-archive-write-webpage-light-with-wget")"
 		else
-			wget_text_target="$(handler_leaf_directory "webpage-archive-write-webpage-light-with-wget" "$id")/SUCCESSFUL_DOWNLOAD"
+			wget_text_target="$(handler_leaf_directory "webpage-archive-write-webpage-light-with-wget" "$id")/$(basename -- "$id")/SUCCESSFUL_DOWNLOAD"
 		fi
 		local wget_text_display="${wget_text_target#"$archive_path"}"
 		wget_text_display="${wget_text_display#/}"
@@ -414,6 +414,7 @@ print_archive_status() {
 						__error "cannot stat %s" "$zip_archive"
 						return "$status"
 					fi
+					remote_note="$(archive_status_etag_note "$zip_archive" "$etag" "$zip_ok" "$remote_mtime" "$local_mtime")"
 				fi
 			fi
 		fi
@@ -616,13 +617,14 @@ print_archive_status() {
 		fi
 
 		case "$relative_file" in
-			*/__backups|*/__backups/*) continue ;;
+#			*/__backups|*/__backups/*) continue ;;
 			"$dump_name"/gallery-dl.cache.sqlite3*) continue ;;
 			*.manifest|*/SUCCESSFUL_DOWNLOAD) continue ;;
 		esac
 
 		case "$base" in
-			__backups|SUCCESSFUL_DOWNLOAD) continue ;;
+			SUCCESSFUL_DOWNLOAD) continue ;;
+#			__backups) continue ;;
 		esac
 
 		if [[ "$relative_file" == "$dump_name"/* ]]; then
@@ -1176,6 +1178,7 @@ bibliography_archive() {
 	configuration_files=()
 	from_file_active=false
 	declare -gA from_file_urls=()
+	declare -gA handler_remaining_arguments=()
 
 	local -a handler_arguments=()
 	while (($# > 0)); do
@@ -1224,6 +1227,22 @@ bibliography_archive() {
 			archive_status=true
 			show_missing_download=true
 			archive_update_status=true
+			shift || __expression_may_fail
+		elif [[ "$1" == "--show-missing-gallerydl" ]]; then
+			show_missing_gallerydl=true
+			archive_status=true
+			shift || __expression_may_fail
+		elif [[ "$1" == "--show-missing-screenshot" ]]; then
+			show_missing_screenshot=true
+			archive_status=true
+			shift || __expression_may_fail
+		elif [[ "$1" == "--show-missing-wget-text" ]]; then
+			show_missing_wget_text=true
+			archive_status=true
+			shift || __expression_may_fail
+		elif [[ "$1" == "--show-missing-thread-html" ]]; then
+			show_missing_thread_html=true
+			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--show-missing*" || "$1" == "--show-missing-all" ]]; then
 			archive_status=true
@@ -1376,22 +1395,6 @@ bibliography_archive() {
 			archive_run_gallerydl=true
 			force_update_existing=true
 			update_archive=true
-			shift || __expression_may_fail
-		elif [[ "$1" == "--show-missing-gallerydl" ]]; then
-			show_missing_gallerydl=true
-			archive_status=true
-			shift || __expression_may_fail
-		elif [[ "$1" == "--show-missing-screenshot" ]]; then
-			show_missing_screenshot=true
-			archive_status=true
-			shift || __expression_may_fail
-		elif [[ "$1" == "--show-missing-wget-text" ]]; then
-			show_missing_wget_text=true
-			archive_status=true
-			shift || __expression_may_fail
-		elif [[ "$1" == "--show-missing-thread-html" ]]; then
-			show_missing_thread_html=true
-			archive_status=true
 			shift || __expression_may_fail
 		elif [[ "$1" == "--configuration-file" ]]; then
 			if [[ -z "${2-}" ]]; then
@@ -1617,29 +1620,43 @@ bibliography_archive() {
 	apply_configuration_enables
 
 	if $archive_run_gallerydl; then
+		handler_remaining_arguments=()
 		handler_twitter_archive_write_tweet_with_gallerydl_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_wget_text; then
+		handler_remaining_arguments=()
 		handler_webpage_archive_write_webpage_light_with_wget_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_wget; then
+		handler_remaining_arguments=()
 		handler_webpage_archive_write_webpage_with_wget_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_make_screenshot; then
+		handler_remaining_arguments=()
 		handler_webpage_archive_write_screenshot_with_screenshot_scraper_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_singlefile; then
+		handler_remaining_arguments=()
 		handler_webpage_archive_write_html_with_singlefile_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_json_to_html; then
+		handler_remaining_arguments=()
 		handler_twitter_archive_export_write_conversation_reconstructed_html_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_cleanup; then
+		handler_remaining_arguments=()
 		handler_twitter_manage_archive_cleanup_duplicate_files_parse_arguments
+		set -- "${handler_remaining_arguments[@]}"
 	fi
 
 	if (($# > 0)); then
-		__error "unknown program argument %s" "$1"
+		__error "unknown program arguments: %s" "$@"
 		local_exit_failsafe
 	fi
 

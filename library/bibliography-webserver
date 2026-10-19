@@ -164,10 +164,15 @@ function bibliography_webserver() {
 	found_url="$(get_value "$index" "_")"
 	found_url="${found_url-}"
 
+	local leaf
+	leaf="${handler_leaf_name["webpage-archive-write-webpage-with-wget"]}"
+	local id_base
+	id_base="$archive_path/${handler_output_path["webpage-archive-write-webpage-with-wget"]}"
+	id_base="${id_base%/}/$reserved_children_name/$reserved_nodes_name/$given_url_identifier/$reserved_data_name/$leaf"
 	local entry_zip
-	entry_zip="$archive_path/$given_url_identifier.zip"
+	entry_zip="$id_base/$(basename -- "$given_url_identifier").zip"
 	local work_directory
-	work_directory="$archive_path/$given_url_identifier"
+	work_directory="$id_base"
 
 	local -a extra_zips
 	extra_zips=( "$work_directory"/*.zip )

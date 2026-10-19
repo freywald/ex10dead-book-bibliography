@@ -20,20 +20,22 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_parse_argum
 		fi
 	done
 
-	set -- "${arguments[@]}"
+	handler_remaining_arguments=("${arguments[@]}")
 }
 
 handler_twitter_archive_export_write_conversation_reconstructed_html_log_failure() {
 	local url="$1"
 	local filename="$2"
-	local reason="$3"
+	local json_file="$3"
+	local reason="$4"
 	{
 		printf 'url: %s\n' "$url"
 		printf 'filename: %s\n' "$filename"
+		printf 'json file: %s\n' "$json_file"
 		printf 'reason: %s\n' "$reason"
 		printf '\n'
 	} >> "$run_error_log"
-	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/twitter-archive-export-write-conversation-reconstructed-html-failed-items.log"
+	printf '%s\n%s\n%s\n\n' "# filename=$filename" "# json_file=$json_file" "$url" >> "$run_directory/twitter-archive-export-write-conversation-reconstructed-html-failed-items.log"
 }
 
 handler_twitter_archive_export_write_conversation_reconstructed_html_escape() {
@@ -177,7 +179,8 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_backup() {
 	[[ ! -f "$output" && ! -f "$manifest" ]] && return 0
 
 	local backup_directory
-	backup_directory="$(backup_directory_for "$output" "$web_archive_path" "${handler_leaf_name["json-to-html"]-}")"
+	backup_directory="$(backup_directory_for "$output" "$(handler_base_path "twitter-archive-export-write-conversation-reconstructed-html")" "${handler_leaf_name["twitter-archive-export-write-conversation-reconstructed-html"]-}")"
+
 	mkdir --parents -- "$backup_directory"
 	local mtime
 	if [[ -f "$output" ]]; then
@@ -257,7 +260,11 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_reconstruct
 		local quote_id="${quote_of["$tweet_id"]}"
 		[[ -n "$quote_id" && -z "${json_of["$quote_id"]:-}" ]] || continue
 		local found
-		for found in "$gallerydl_dump_path"/*/"$quote_id/$quote_id.json"; do
+
+		local leaf="${handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]-}"
+		local quote_glob="$quote_id/$reserved_data_name"
+		[[ -n "$leaf" ]] && quote_glob+="/$leaf"
+		for found in "$gallerydl_dump_path/$reserved_children_name/$reserved_nodes_name"/*/"$quote_glob/$quote_id.json"; do
 			[[ -f "$found" ]] || continue
 			json_of["$quote_id"]="$found"
 			embed_only["$quote_id"]=1
@@ -287,10 +294,20 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_reconstruct
 
 		local tweet_directory
 		tweet_directory="$(dirname -- "$json")"
+
+		local data_directory
+		data_directory="$(dirname -- "$json")"
+		while [[ "$(basename -- "$data_directory")" != "$reserved_data_name" && "$data_directory" != "/" ]]; do
+			data_directory="$(dirname -- "$data_directory")"
+		done
+		local tweet_id_directory
+		tweet_id_directory="$(dirname -- "$data_directory")"
 		local user_id
-		user_id="$(basename -- "$(dirname -- "$tweet_directory")")"
+		user_id="$(basename -- "$(dirname -- "$tweet_id_directory")")"
 		local output_directory
-		output_directory="$(handler_leaf_directory "json-to-html" "$user_id/$(basename -- "$tweet_directory")")"
+		output_directory="$(handler_leaf_directory "twitter-archive-export-write-conversation-reconstructed-html" "$user_id/$(basename -- "$tweet_id_directory")")"
+
+
 		local output="$output_directory/reconstructed-twitter-thread.html"
 		local manifest="$output_directory/reconstructed-twitter-thread.manifest"
 		mkdir --parents -- "$output_directory"
@@ -314,7 +331,7 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_reconstruct
 			local tweet_url
 			tweet_url="$(jq -r '.url // .tweet_url // empty' -- "$json")"
 			[[ -n "$tweet_url" ]] || tweet_url="tweet $tweet_id"
-			handler_twitter_archive_export_write_conversation_reconstructed_html_log_failure "$tweet_url" "$output" "render produced no file"
+			handler_twitter_archive_export_write_conversation_reconstructed_html_log_failure "$tweet_url" "$output" "$json" "render produced no file"
 			__warn "json-to-html failed for %s" "$tweet_url"
 			continue
 		fi

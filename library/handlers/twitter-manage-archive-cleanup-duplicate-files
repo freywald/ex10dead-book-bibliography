@@ -20,7 +20,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files_parse_arguments() {
 		fi
 	done
 
-	set -- "${arguments[@]}"
+	handler_remaining_arguments=("${arguments[@]}")
 }
 
 handler_twitter_manage_archive_cleanup_duplicate_files() {
@@ -30,7 +30,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 	fi
 
 	local trash_root="$cleanup_trash_path"
-	if [[ "$trash_root" != /* ]]; then
+	if [[ "$trash_root" != "/"* ]]; then
 		trash_root="$(realpath --canonicalize-missing -- "$trash_root")" || {
 			__error "cannot resolve trash_path %s" "$cleanup_trash_path"
 			local_exit_failsafe
@@ -38,10 +38,9 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 	fi
 	mkdir --parents -- "$trash_root"
 
-	# Volatile fields that change without the post content changing.
-	# Counters and the bookmark timestamp move on every view or bookmark action.
-	# Profile fields (nick, description, location, banner, image, verified, protected)
-	# change when the account is edited; the oldest copy is the one we keep.
+	# volatile fields that change without the post content changing.
+	# - counters and the bookmark timestamp move on every view or bookmark action.
+	# - profile fields (nick, description, location, banner, image, verified, protected) change when the account is edited; the oldest copy is the one we keep.
 	local volatile_filter
 	volatile_filter='
 		del(
@@ -63,14 +62,15 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 
 	declare -A groups=()
 	local cleaned=0
-	local tweet_directory
-	for tweet_directory in "$gallerydl_dump_path"/*/*/; do
-		if [[ ! -d "$tweet_directory" ]]; then
-			continue
-		fi
 
-		local backups="$tweet_directory/__backups"
-		if [[ ! -d "$backups" ]]; then
+	local backup_root
+	backup_root="$(backup_root_for "$gallerydl_dump_path")"
+	local backups
+	for backups in "$backup_root/$reserved_children_name/$reserved_nodes_name/"*/*/"$reserved_data_name"/*/"__backups/"; do
+		[[ -d "$backups" ]] || continue
+		local tweet_directory="${backups%/__backups}"
+
+		if [[ ! -d "$tweet_directory" ]]; then
 			continue
 		fi
 
@@ -85,7 +85,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 			continue
 		fi
 
-		local relative="${tweet_directory#"$gallerydl_dump_path/"}"
+		local relative="${tweet_directory#"$backup_root/"}"
 		relative="${relative%/}"
 		local work
 		work="$temporary_files_path/$(date +%s)-cleanup/$relative"

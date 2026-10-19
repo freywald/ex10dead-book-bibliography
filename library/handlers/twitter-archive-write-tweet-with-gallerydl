@@ -32,7 +32,7 @@ handler_twitter_archive_write_tweet_with_gallerydl_parse_arguments() {
 		fi
 	done
 
-	set -- "${arguments[@]}"
+	handler_remaining_arguments=("${arguments[@]}")
 }
 
 handler_twitter_archive_write_tweet_with_gallerydl_log_failure() {
@@ -45,7 +45,7 @@ handler_twitter_archive_write_tweet_with_gallerydl_log_failure() {
 		printf 'reason: %s\n' "$reason"
 		printf '\n'
 	} >> "$run_error_log"
-	printf '%s\n%s\n' "$url" "$filename" >> "$run_directory/twitter-archive-write-tweet-with-gallerydl-failed-items.log"
+	printf '%s\n%s\n\n' "# filename=$filename" "$url" >> "$run_directory/twitter-archive-write-tweet-with-gallerydl-failed-items.log"
 }
 
 handler_twitter_archive_write_tweet_with_gallerydl_tweet_complete() {
@@ -192,7 +192,7 @@ function handler_twitter_archive_write_tweet_with_gallerydl_download() {
 
 	local id_path="${queued_ids["$url"]-}"
 	if [[ -n "$id_path" ]]; then
-		tweet_directory="$(handler_leaf_directory "gallery-dl" "$id_path")"
+		tweet_directory="$(handler_leaf_directory "twitter-archive-write-tweet-with-gallerydl" "$id_path")"
 		handler_twitter_archive_write_tweet_with_gallerydl_backup_leaf "$tweet_directory" || {
 			__warn "gallery-dl backup failed for %s" "$url"
 			return $?
@@ -205,8 +205,14 @@ function handler_twitter_archive_write_tweet_with_gallerydl_download() {
 	local part_directory="$temporary_files_path/$(date +%s)-gallery-dl"
 	mkdir --parents -- "$part_directory"
 
+	local leaf="${handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]-}"
+	local -a gallerydl_directory=("$reserved_children_name" "$reserved_nodes_name" "{author[id]|user[id]}" "{tweet_id}" "$reserved_data_name")
+	[[ -n "$leaf" ]] && gallerydl_directory+=("$leaf")
+	local gallerydl_directory_json
+	gallerydl_directory_json="$(printf '%s\n' "${gallerydl_directory[@]}" | jq -Rsc 'split("\n")[:-1]')"
+
 	local status=0
-	gallery-dl --verbose --config-ignore --cookies "$gallery_dl_cookie_file" --mtime-from-date --sleep "${gallerydl_sleep:-20-60}" --sleep-request "${gallerydl_sleep_request:-30-90}" --retries 6 --http-timeout 60.0 --limit-rate 5M --option downloader.mtime=false --option downloader.progress=5.0 --option downloader.part-directory="$part_directory" --option downloader.timeout=60.0 --option downloader.ytdl.module=yt_dlp --option extractor.base-directory="$gallerydl_dump_path/" --option extractor.path-restrict='{"\\":"⧹","/":"⧸","|":"￨",":":"꞉","*":"∗","?":"？","\"":"″","<":"﹤",">":"﹥"}' --option extractor.ytdl.enabled=true --option extractor.ytdl.module=yt_dlp --option extractor.ytdl.generic=false --option extractor.ytdl.config-file="$HOME/.config/yt-dlp/config" --option extractor.twitter.quoted=true --option extractor.twitter.unavailable=true --option extractor.twitter.cards=true --option extractor.twitter.retweets=true --option extractor.twitter.size=orig --option extractor.twitter.text-tweets=true --option extractor.twitter.twitpic=true --option extractor.twitter.directory='["{author[id]|user[id]}","{tweet_id}"]' --postprocessor metadata --postprocessor-option event=post --postprocessor-option filename="{tweet_id}.json" -- "$url" || status="$(abort_on_interrupt "$?")"
+	gallery-dl --verbose --config-ignore --cookies "$gallery_dl_cookie_file" --mtime-from-date --sleep "${gallerydl_sleep:-20-60}" --sleep-request "${gallerydl_sleep_request:-30-90}" --retries 6 --http-timeout 60.0 --limit-rate 5M --option downloader.mtime=false --option downloader.progress=5.0 --option downloader.part-directory="$part_directory" --option downloader.timeout=60.0 --option downloader.ytdl.module=yt_dlp --option extractor.base-directory="$gallerydl_dump_path/" --option extractor.path-restrict='{"\\":"⧹","/":"⧸","|":"￨",":":"꞉","*":"∗","?":"？","\"":"″","<":"﹤",">":"﹥"}' --option extractor.ytdl.enabled=true --option extractor.ytdl.module=yt_dlp --option extractor.ytdl.generic=false --option extractor.ytdl.config-file="$HOME/.config/yt-dlp/config" --option extractor.twitter.quoted=true --option extractor.twitter.unavailable=true --option extractor.twitter.cards=true --option extractor.twitter.retweets=true --option extractor.twitter.size=orig --option extractor.twitter.text-tweets=true --option extractor.twitter.twitpic=true --option extractor.twitter.directory="$gallerydl_directory_json" --postprocessor metadata --postprocessor-option event=post --postprocessor-option filename="{tweet_id}.json" -- "$url" || status="$(abort_on_interrupt "$?")"
 
 	if (( status > 0 )); then
 		local logged_file="${json:-$tweet_directory}"
