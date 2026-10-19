@@ -202,7 +202,7 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_backup() {
 	__info "Wrote pair backup %s" "$dest"
 }
 
-handler_twitter_archive_export_write_conversation_reconstructed_html_reconstruct() {
+handler_twitter_archive_export_write_conversation_reconstructed_html() {
 	declare -A json_of=()
 	declare -A reply_of=()
 	declare -A quote_of=()
