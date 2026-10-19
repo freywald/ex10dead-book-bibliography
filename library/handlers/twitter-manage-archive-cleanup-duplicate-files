@@ -64,7 +64,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 	local cleaned=0
 
 	local backup_root
-	backup_root="$(backup_root_for "$gallerydl_dump_path")"
+	backup_root="$(backup_root_for "$twitter_archive_write_tweet_with_gallerydl_path")"
 	local backups
 	for backups in "$backup_root/$reserved_children_name/$reserved_nodes_name/"*/*/"$reserved_data_name"/*/"__backups/"; do
 		[[ -d "$backups" ]] || continue

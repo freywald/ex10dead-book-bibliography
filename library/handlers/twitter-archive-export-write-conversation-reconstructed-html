@@ -264,7 +264,7 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_reconstruct
 		local leaf="${handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]-}"
 		local quote_glob="$quote_id/$reserved_data_name"
 		[[ -n "$leaf" ]] && quote_glob+="/$leaf"
-		for found in "$gallerydl_dump_path/$reserved_children_name/$reserved_nodes_name"/*/"$quote_glob/$quote_id.json"; do
+		for found in "$twitter_archive_write_tweet_with_gallerydl_path/$reserved_children_name/$reserved_nodes_name"/*/"$quote_glob/$quote_id.json"; do
 			[[ -f "$found" ]] || continue
 			json_of["$quote_id"]="$found"
 			embed_only["$quote_id"]=1

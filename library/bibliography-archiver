@@ -95,15 +95,7 @@ setup_run_logging() {
 	declare -ga run_failed_item_logs=()
 	local handler_name
 	local log_path
-	for handler_name in \
-		"twitter-archive-write-tweet-with-gallerydl" \
-		"webpage-archive-write-webpage-with-wget" \
-		"webpage-archive-write-webpage-light-with-wget" \
-		"webpage-archive-write-screenshot-with-screenshot-scraper" \
-		"webpage-archive-write-html-with-singlefile" \
-		"twitter-archive-export-write-conversation-reconstructed-html" \
-		"twitter-manage-archive-cleanup-duplicate-files"
-	do
+	for handler_name in "twitter-archive-write-tweet-with-gallerydl" "webpage-archive-write-webpage-with-wget" "webpage-archive-write-webpage-light-with-wget" "webpage-archive-write-screenshot-with-screenshot-scraper" "webpage-archive-write-html-with-singlefile" "twitter-archive-export-write-conversation-reconstructed-html" "twitter-manage-archive-cleanup-duplicate-files"; do
 		log_path="$run_directory/${handler_name}-failed-items.log"
 		: >| "$log_path"
 		run_failed_item_logs+=("$log_path")
@@ -559,18 +551,25 @@ print_archive_status() {
 	local -a orphans=()
 	local -a scan_roots=()
 
+	# @todo will be removed when $web_archive_path is no longer used
 	if [[ -d "$web_archive_path" ]]; then
 		scan_roots+=("$web_archive_path")
 	fi
-	if [[ -d "$gallerydl_dump_path" ]]; then
-		scan_roots+=("$gallerydl_dump_path")
-	fi
+
+	for handler_name in "twitter-archive-write-tweet-with-gallerydl" "webpage-archive-write-webpage-with-wget" "webpage-archive-write-webpage-light-with-wget" "webpage-archive-write-screenshot-with-screenshot-scraper" "webpage-archive-write-html-with-singlefile" "twitter-archive-export-write-conversation-reconstructed-html" "twitter-manage-archive-cleanup-duplicate-files"; do
+		local path_variable
+        path_variable="${handler_name//"-"/"_"}_path"
+		if [[ -d "${!path_variable}" ]]; then
+        	scan_roots+=("${!path_variable}")
+        fi
+	done
+
 	if ((${#scan_roots[@]} == 0)); then
 		return 0
 	fi
 
 	local dump_name
-	dump_name="$(archive_relative "$gallerydl_dump_path")"
+	dump_name="$(archive_relative "$twitter_archive_write_tweet_with_gallerydl_path")"
 	local web_name
 	web_name="$(archive_relative "$web_archive_path")"
 
@@ -1619,37 +1618,52 @@ bibliography_archive() {
 
 	apply_configuration_enables
 
+	twitter_archive_write_tweet_with_gallerydl_path="$(handler_base_path "twitter-archive-write-tweet-with-gallerydl")"
+	webpage_archive_write_webpage_with_wget_path="$(handler_base_path "webpage-archive-write-webpage-with-wget")"
+	webpage_archive_write_webpage_light_with_wget_path="$(handler_base_path "webpage-archive-write-webpage-light-with-wget")"
+	webpage_archive_write_screenshot_with_screenshot_scraper_path="$(handler_base_path "webpage-archive-write-screenshot-with-screenshot-scraper")"
+	webpage_archive_write_html_with_singlefile_path="$(handler_base_path "webpage-archive-write-html-with-singlefile")"
+	twitter_archive_export_write_conversation_reconstructed_html_path="$(handler_base_path "twitter-archive-export-write-conversation-reconstructed-html")"
+	twitter_manage_archive_cleanup_duplicate_files_path="$(handler_base_path "twitter-manage-archive-cleanup-duplicate-files")"
+
 	if $archive_run_gallerydl; then
+		mkdir --parents -- "$twitter_archive_write_tweet_with_gallerydl_path/"
 		handler_remaining_arguments=()
 		handler_twitter_archive_write_tweet_with_gallerydl_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_wget_text; then
+		mkdir --parents -- "$webpage_archive_write_webpage_light_with_wget_path/"
 		handler_remaining_arguments=()
 		handler_webpage_archive_write_webpage_light_with_wget_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_wget; then
+		mkdir --parents -- "$webpage_archive_write_webpage_with_wget_path/"
 		handler_remaining_arguments=()
 		handler_webpage_archive_write_webpage_with_wget_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_make_screenshot; then
+		mkdir --parents -- "$webpage_archive_write_screenshot_with_screenshot_scraper_path/"
 		handler_remaining_arguments=()
 		handler_webpage_archive_write_screenshot_with_screenshot_scraper_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_singlefile; then
+		mkdir --parents -- "$webpage_archive_write_html_with_singlefile_path/"
 		handler_remaining_arguments=()
 		handler_webpage_archive_write_html_with_singlefile_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_json_to_html; then
+		mkdir --parents -- "$twitter_archive_export_write_conversation_reconstructed_html_path/"
 		handler_remaining_arguments=()
 		handler_twitter_archive_export_write_conversation_reconstructed_html_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
 	fi
 	if $archive_run_cleanup; then
+		mkdir --parents -- "$twitter_manage_archive_cleanup_duplicate_files_path/"
 		handler_remaining_arguments=()
 		handler_twitter_manage_archive_cleanup_duplicate_files_parse_arguments
 		set -- "${handler_remaining_arguments[@]}"
@@ -1680,9 +1694,9 @@ bibliography_archive() {
 		fi
 	fi
 
-	gallerydl_dump_path="$(handler_base_path "twitter-archive-write-tweet-with-gallerydl")"
-	web_archive_path="$(handler_base_path "webpage-archive-write-webpage-with-wget")" # @fixme
-	mkdir --parents -- "$gallerydl_dump_path/" "$web_archive_path/"
+	# @todo in future, every handler should use its own path, as its currently configured it works
+	web_archive_path="$(handler_base_path "webpage-archive-write-webpage-with-wget")"
+	mkdir --parents -- "$web_archive_path/"
 
 	setup_run_logging
 
