@@ -67,8 +67,8 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 	backup_root="$(backup_root_for "$twitter_archive_write_tweet_with_gallerydl_path")"
 	local backups
 	for backups in "$backup_root/$reserved_children_name/$reserved_nodes_name/"*/*/"$reserved_data_name"/*/"__backups/"; do
-		[[ -d "$backups" ]] || continue
-		local tweet_directory="${backups%/__backups}"
+		[[ ! -d "$backups" ]] && continue
+		local tweet_directory="${backups%"/__backups"}"
 
 		if [[ ! -d "$tweet_directory" ]]; then
 			continue
@@ -76,19 +76,22 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 
 		local -a json_zips=()
 		local zip
-		for zip in "$backups"/*.json.zip; do
+		for zip in "$backups"/*".json.zip"; do
 			if [[ -f "$zip" ]]; then
 				json_zips+=("$zip")
 			fi
 		done
+
 		if ((${#json_zips[@]} < 2)); then
 			continue
 		fi
 
 		local relative="${tweet_directory#"$backup_root/"}"
-		relative="${relative%/}"
+		relative="${relative%"/"}"
+
 		local work
 		work="$temporary_files_path/$(date +%s)-cleanup/$relative"
+
 		mkdir --parents -- "$work"
 
 		local -a member_zips=()
@@ -109,7 +112,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 				break
 			fi
 
-			hash="$(basename -- "$zip" .json.zip)"
+			hash="$(basename -- "$zip" ".json.zip")"
 			status=0
 			unzip -p -- "$zip" "$entry" >| "$work/$hash.json" || status=$?
 			if (( status != 0 )); then
@@ -148,6 +151,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 			member_zip_mtimes+=("$zip_mtime")
 			member_norms+=("$normalized")
 		done
+
 		if $abort; then
 			continue
 		fi
@@ -163,12 +167,14 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 		local group
 		for group in "${!groups[@]}"; do
 			local -a group_indexes=()
+
 			local member_index
 			while IFS= read -r member_index; do
 				if [[ -n "$member_index" ]]; then
 					group_indexes+=("$member_index")
 				fi
 			done <<<"${groups["$group"]}"
+
 			if ((${#group_indexes[@]} < 2)); then
 				continue
 			fi
@@ -193,8 +199,10 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 
 			local trash_item="$trash_root/$relative/__backups"
 			mkdir --parents -- "$trash_item"
+
 			local candidate_hash="${member_hashes["$candidate_index"]}"
-			local log="$trash_item/${candidate_hash}.candidate-selection.log"
+
+			local log="$trash_item/$candidate_hash.candidate-selection.log"
 			{
 				printf '--- cleanup run %s ---\n' "$(date '+%d.%m.%Y %H:%M:%S')"
 				printf 'kept: %s\n' "${member_zips["$candidate_index"]}"
@@ -205,19 +213,22 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 				if [[ "$other_index" == "$candidate_index" ]]; then
 					continue
 				fi
+
 				other_zip="${member_zips["$other_index"]}"
 				other_name="$(basename -- "$other_zip")"
 				destination="$trash_item/$other_name"
+
 				if [[ -e "$destination" ]]; then
 					__warn "trash file already exists, not moved: %s" "$destination"
 					continue
 				fi
+
 				printf 'moved: %s\n' "$other_zip" >> "$log"
-				mv -- "$other_zip" "$destination"
+				echo mv -- "$other_zip" "$destination"
+
 				cleaned="$((cleaned + 1))" || __expression_may_fail
 			done
 		done
-
 	done
 
 	__info "cleaned %s duplicate json backup(s)" "$cleaned"

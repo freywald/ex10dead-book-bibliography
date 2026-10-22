@@ -101,7 +101,7 @@ archive_relative() {
 	local path="$1"
 	path="${path#"$__current_directory"}"
 	path="${path#"$archive_path"}"
-	path="${path#/}"
+	path="${path#"/"}"
 	path="${path#./}"
 	path="${path%/}"
 	while [[ "$path" == *//* ]]; do

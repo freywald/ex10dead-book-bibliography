@@ -176,6 +176,7 @@ function handler_twitter_archive_write_tweet_with_gallerydl_download() {
 	local url="$1"
 
 	if ! handler_twitter_archive_write_tweet_with_gallerydl_is_status_url "$url"; then
+		handler_was_skipped=true
 		__warn "method twitter-archive-write-tweet-with-gallerydl is skipped, not an X status URL: %s" "$url"
 		return 0
 	fi
@@ -186,6 +187,7 @@ function handler_twitter_archive_write_tweet_with_gallerydl_download() {
 	if [[ -n "$json" && -f "$json" ]]; then
 		tweet_directory="$(dirname -- "$json")"
 		if handler_twitter_archive_write_tweet_with_gallerydl_tweet_complete "$tweet_directory" "$json" && ! $force_update_existing; then
+			handler_was_skipped=true
 			__verbose "gallery-dl skipped, files complete"
 			return 0
 		fi

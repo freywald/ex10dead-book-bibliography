@@ -209,7 +209,7 @@ status_wanted() {
 	if $show_missing_thread_html && ! $reconstruct_ok; then
 		want=true
 	fi
-	if $show_missing_download && [[ "$remote" == download* || "$remote" == remote-newer* || "$remote" == etag-differs* ]]; then
+	if $show_missing_download && [[ "$remote" == "download"* || "$remote" == "remote-newer"* || "$remote" == "etag-differs"* ]]; then
 		want=true
 	fi
 	$want
@@ -252,6 +252,7 @@ print_archive_status() {
 		local wget_text_ok=false
 		local reconstruct_ok=false
 		local remote_note=""
+
 		local zip_display="$zip_archive"
 		if [[ "$zip_archive" == "$__current_directory"* ]]; then
 			zip_display="${zip_archive#"$__current_directory"}"
@@ -269,13 +270,13 @@ print_archive_status() {
 		if [[ "$screenshot_display" == "$archive_path"* ]]; then
 			screenshot_display="${screenshot_display#"$archive_path"}"
 		fi
-		screenshot_display="${screenshot_display#/}"
+		screenshot_display="${screenshot_display#"/"}"
 		local singlefile_path
 		singlefile_path="$(handler_leaf_directory "webpage-archive-write-html-with-singlefile" "$id")/$(basename -- "$zip_archive" .zip).singlefile.html"
 
 		local singlefile_display="${singlefile_path#"$archive_path"}"
-		singlefile_display="${singlefile_display#/}"
-		zip_display="${zip_display#/}"
+		singlefile_display="${singlefile_display#"/"}"
+		zip_display="${zip_display#"/"}"
 		local gallerydl_file=""
 		local gallerydl_display=""
 		local tweet_id
@@ -284,16 +285,16 @@ print_archive_status() {
 		gallerydl_file="$(gallerydl_json_for_url "$queued_url")" || gallerydl_file=""
 		if [[ -n "$gallerydl_file" && -f "$gallerydl_file" ]]; then
 			gallerydl_display="${gallerydl_file#"$archive_path"}"
-			gallerydl_display="${gallerydl_display#/}"
+			gallerydl_display="${gallerydl_display#"/"}"
 			gallerydl_ok=true
 		elif [[ -n "$tweet_id" ]]; then
 			gallerydl_display="$(handler_leaf_directory "twitter-archive-write-tweet-with-gallerydl" "$id")/${tweet_id}.json"
 			gallerydl_display="${gallerydl_display#"$archive_path"}"
-			gallerydl_display="${gallerydl_display#/}"
+			gallerydl_display="${gallerydl_display#"/"}"
 		else
 			gallerydl_display="Missing json in: $(handler_leaf_directory "twitter-archive-write-tweet-with-gallerydl" "$id")/"
 			gallerydl_display="${gallerydl_display#"$archive_path"}"
-			gallerydl_display="${gallerydl_display#/}"
+			gallerydl_display="${gallerydl_display#"/"}"
 		fi
 
 		local wget_text_target
@@ -303,11 +304,11 @@ print_archive_status() {
 			wget_text_target="$(handler_leaf_directory "webpage-archive-write-webpage-light-with-wget" "$id")/$(basename -- "$id")/SUCCESSFUL_DOWNLOAD"
 		fi
 		local wget_text_display="${wget_text_target#"$archive_path"}"
-		wget_text_display="${wget_text_display#/}"
+		wget_text_display="${wget_text_display#"/"}"
 		local reconstruct_file
 		reconstruct_file="$(handler_leaf_directory "twitter-archive-export-write-conversation-reconstructed-html" "$id")/reconstructed-twitter-thread.html"
 		local reconstruct_display="${reconstruct_file#"$archive_path"}"
-		reconstruct_display="${reconstruct_display#/}"
+		reconstruct_display="${reconstruct_display#"/"}"
 
 		if [[ -f "$zip_archive" ]]; then
 			zip_ok=true
@@ -568,6 +569,7 @@ print_archive_status() {
 
 	# @todo will be removed when $web_archive_path is no longer used
 	if [[ -d "$web_archive_path" ]]; then
+		seen_root["$web_archive_path"]=1
 		scan_roots+=("$web_archive_path")
 	fi
 
@@ -589,7 +591,8 @@ print_archive_status() {
 	local web_name
 	web_name="$(archive_relative "$web_archive_path")"
 
-	__info "scanning archive trees for orphans"
+	__info "scanning archive trees for orphans: %s" "$(__array_to_string scan_roots)"
+
 	local file
 	while IFS= read -r -d '' file; do
 		scanned=$((scanned + 1)) || __expression_may_fail
@@ -611,32 +614,41 @@ print_archive_status() {
 			continue
 		fi
 
-		if [[ "$relative_file" == "$(archive_relative "$twitter_archive_write_tweet_with_gallerydl_path")"/* ]]; then
-			local data_directory="$file"
-			[[ -f "$file" ]] && data_directory="$(dirname -- "$file")"
-			while [[ "$(basename -- "$data_directory")" != "$reserved_data_name" && "$data_directory" != "/" ]]; do
-				data_directory="$(dirname -- "$data_directory")"
-			done
-			if [[ "$(basename -- "$data_directory")" == "$reserved_data_name" ]]; then
-				local tweet_id leaf
-				tweet_id="$(basename -- "$(dirname -- "$data_directory")")"
-				leaf="${handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]-}"
-				if [[ -f "$data_directory/$tweet_id.json" ]] || { [[ -n "$leaf" ]] && [[ -f "$data_directory/$leaf/$tweet_id.json" ]]; }; then
-					continue
-				fi
-			fi
-		fi
+#		if [[ "$relative_file" == "$(archive_relative "$twitter_archive_write_tweet_with_gallerydl_path")"/* ]]; then
+#			local data_directory="$file"
+#			[[ -f "$file" ]] && data_directory="$(dirname -- "$file")"
+#			#@fixme this code does endlessly loop since dirname "" returns ".". I think it is wrong from the beginning even if this is fixed.
+## it just cuts the directory from the right down to "."  since the directory is relative. we should never not leave the data directory root to find orphan data files.
+##scanned=7192 data_directory=3. data/Quellen/Web-Archive/Twitter.bibliography//dump
+##scanned=7192 data_directory=3. data/Quellen/Web-Archive/Twitter.bibliography
+##scanned=7192 data_directory=3. data/Quellen/Web-Archive
+##scanned=7192 data_directory=3. data/Quellen
+##scanned=7192 data_directory=3. data
+##			while [[ "$(basename -- "$data_directory")" != "$reserved_data_name" && "$data_directory" != "/" ]]; do
+##				data_directory="$(dirname -- "$data_directory")"
+##				echo  "scanned=$scanned data_directory=$data_directory"
+##			done
+#			if [[ "$(basename -- "$data_directory")" == "$reserved_data_name" ]]; then
+#				local tweet_id leaf
+#				tweet_id="$(basename -- "$(dirname -- "$data_directory")")"
+#				leaf="${handler_leaf_name["twitter-archive-write-tweet-with-gallerydl"]-}"
+#				if [[ -f "$data_directory/$tweet_id.json" ]] || { [[ -n "$leaf" ]] && [[ -f "$data_directory/$leaf/$tweet_id.json" ]]; }; then
+#					continue
+#				fi
+#			fi
+#		fi
 
-#		case "$relative_file" in
-#			""|"$dump_name"|"$web_name") continue ;;
-#		esac
+		case "$relative_file" in
+			""|"$dump_name"|"$web_name") continue ;;
+		esac
+
 
 		if [[ -n "${expected_archive_paths["$relative_file"]+set}" ]]; then
 			continue
 		fi
 		local under_expected=false
 		local parent="$relative_file"
-		while [[ "$parent" == */* ]]; do
+		while [[ "$parent" == *"/"* ]]; do
 			parent="${parent%/*}"
 			if [[ -n "${expected_archive_paths["$parent"]+set}" ]]; then
 				under_expected=true
@@ -649,8 +661,8 @@ print_archive_status() {
 
 		case "$relative_file" in
 #			*/__backups|*/__backups/*) continue ;;
-			"$dump_name"/gallery-dl.cache.sqlite3*) continue ;;
-			*.manifest|*/SUCCESSFUL_DOWNLOAD) continue ;;
+			"$dump_name"/"gallery-dl.cache.sqlite3"*) continue ;;
+			*".manifest"|*"/SUCCESSFUL_DOWNLOAD") continue ;;
 		esac
 
 		case "$base" in
@@ -673,6 +685,7 @@ print_archive_status() {
 				fi
 			fi
 		fi
+
 #		if [[ "$relative_file" == "$dump_name"/* ]]; then
 #			local dump_directory="$file"
 #			if [[ -f "$file" ]]; then
@@ -740,8 +753,8 @@ manage_archive_for_url() {
 			exit "$wget_status"
 		fi
 		if (( wget_status != 0 )); then
+			__warn "archive incomplete after wget status %s" "$wget_status"
 			__failure "method failed for %s" "$url"
-			__warn "archive incomplete for %s after wget status %s" "$url" "$wget_status"
 			return 0
 		fi
 		__success "method finished"
@@ -752,23 +765,27 @@ manage_archive_for_url() {
 			exit "$singlefile_status"
 		fi
 		if (( singlefile_status != 0 )); then
+			__warn "archive incomplete after singlefile status %s" "$singlefile_status"
 			__failure "method failed for %s" "$url"
-			__warn "archive incomplete for %s after singlefile status %s" "$url" "$singlefile_status"
 			return 0
 		fi
 		__success "method finished"
 	fi
 	if $archive_run_gallerydl; then
+		local handler_was_skipped=false
+
 		handler_twitter_archive_write_tweet_with_gallerydl_download "$url" || gallerydl_status=$?
 		if (( gallerydl_status == 130 || gallerydl_status == 143 )); then
 			exit "$gallerydl_status"
 		fi
 		if (( gallerydl_status != 0 )); then
+			__warn "archive incomplete after gallery-dl status %s"  "$gallerydl_status"
 			__failure "method failed for %s" "$url"
-			__warn "archive incomplete for %s after gallery-dl status %s" "$url" "$gallerydl_status"
 			return 0
 		fi
-		__success "method finished"
+
+		! $handler_was_skipped && __success "method finished"
+
 	fi
 	if $archive_run_wget_text; then
 		local wget_text_domain="${url#*://}"
@@ -784,8 +801,8 @@ manage_archive_for_url() {
 			exit "$wget_text_status"
 		fi
 		if (( wget_text_status != 0 )); then
+			__warn "archive incomplete after wget-text status %s" "$wget_text_status"
 			__failure "method failed for %s" "$url"
-			__warn "archive incomplete for %s after wget-text status %s" "$url" "$wget_text_status"
 			return 0
 		fi
 		__success "method finished"
@@ -807,8 +824,8 @@ manage_archive_for_url() {
 			sleep "$screenshot_pause"
 		fi
 		if (( screenshot_status != 0 )); then
+			__warn "stopping after screenshot status %s" "$screenshot_status"
 			__failure "method failed for %s" "$url"
-			__warn "stopping %s after screenshot status %s" "$url" "$screenshot_status"
 			return 0
 		fi
 		__success "method finished"
@@ -860,9 +877,14 @@ manage_archive_for_url() {
 }
 
 extract_urls_from_bibliography() {
+	__info "Reading input. Generating tree…"
 	generate_tree "-1" false false ""
+	__info "Generating tree… done."
+
 	verify_tree
+
 	declare -A url_owners=()
+	local scanned=0
 
 	if [[ "$filter_by_id" == http://* || "$filter_by_id" == https://* ]]; then
 		archive_url_filter="$filter_by_id"
@@ -870,7 +892,13 @@ extract_urls_from_bibliography() {
 		local key
 		local owner=""
 		local owners=0
+
 		for key in "${tree_order[@]}"; do
+			scanned="$((scanned + 1))" || __expression_may_fail
+			if (( scanned % 100 == 0 )); then
+				__info "filtering tree… more than %s nodes" "$scanned"
+			fi
+
 			local u
 			u="$(get_metadata "_" "$key")"
 			if [[ "$u" == "$archive_url_filter" ]]; then
@@ -916,6 +944,7 @@ extract_urls_from_bibliography() {
 		archive_id_with_extras=true
 		__info "url %s belongs to %s" "$archive_url_filter" "$filter_by_id"
 	fi
+
 	declare -A title_urls=()
 	declare -A queued_urls=()
 	declare -A queued_ids=()
@@ -924,6 +953,7 @@ extract_urls_from_bibliography() {
 	declare -a ignored_reference_urls=()
 	declare -a ignored_reference_kinds=()
 	wget_zip_paths_this_session=()
+	scanned=0
 
 	local key
 	for key in "${tree_order[@]}"; do
@@ -932,6 +962,11 @@ extract_urls_from_bibliography() {
 
 		local type=""
 		type="$(resolved_type "$key")" || type=""
+
+		scanned="$((scanned + 1))" || __expression_may_fail
+		if (( scanned % 100 == 0 )); then
+			__info "filtering tree… more than %s nodes" "$scanned"
+		fi
 
 		local data_kind=""
 		if [[ -n "$type" ]]; then
