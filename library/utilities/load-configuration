@@ -11,20 +11,27 @@ readonly reserved_data_name=""
 readonly reserved_children_name=""
 readonly reserved_nodes_name=""
 
+function local_exit_failsafe() { __exit_failsafe; exit 1; }
+
 load_configuration_file() {
 	local file="$1"
 
 	if [[ ! -f "$file" ]]; then
 		__error "configuration file not found: %s" "$file"
-		return 1
-	fi
-	if ! command -v yq >"/dev/null"; then
-		__error "yq is required to read %s" "$file"
-		return 1
+		local_exit_failsafe
 	fi
 
+	if ! command -v "yq" >"/dev/null"; then
+		__error "yq is required to read %s" "$file"
+		local_exit_failsafe
+	fi
+
+	local status=0
 	local json
-	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || return 1
+	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || status="$(abort_on_interrupt "$?")"
+	if (( status != 0 )); then
+		return "$status"
+	fi
 
 	local value
 	if jq --exit-status 'has("bibliography_name")' <<<"$json" >"/dev/null"; then

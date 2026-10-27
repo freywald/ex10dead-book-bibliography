@@ -12,7 +12,7 @@ source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/utilitie
 
 gallerydl_dump_directory_name="dump"
 web_archive_directory_name="web-archive"
-temporary_files_path="${TMPDIR:-/tmp}/bibliography-work"
+temporary_files_path="${TMPDIR:-"/tmp"}/bibliography-work"
 wget_text_arguments=()
 wget_text_arguments_file=""
 declare -gA handler_enabled=()
@@ -105,10 +105,10 @@ setup_run_logging() {
 		run_failed_item_logs+=("$log_path")
 	done
 
-	replace_symlink "${run_directory#"$archive_path/"}" "$archive_path/run/current"
-	replace_symlink "${run_default_log#"$archive_path/"}" "$archive_path/default.log"
-	replace_symlink "${run_error_log#"$archive_path/"}" "$archive_path/error.log"
-	replace_symlink "${failed_items_log#"$archive_path/"}" "$archive_path/failed-items.log"
+	__replace_symlink --no-dereference --force --symbolic -- "${run_directory#"$archive_path/"}" "$archive_path/run/current"
+	__replace_symlink --no-dereference --force --symbolic -- "${run_default_log#"$archive_path/"}" "$archive_path/default.log"
+	__replace_symlink --no-dereference --force --symbolic -- "${run_error_log#"$archive_path/"}" "$archive_path/error.log"
+	__replace_symlink --no-dereference --force --symbolic -- "${failed_items_log#"$archive_path/"}" "$archive_path/failed-items.log"
 
 	__setup_logging "$run_default_log" "$run_error_log"
 }
@@ -128,17 +128,17 @@ close_run_logging() {
 	if [[ ! -f "$run_default_log" ]]; then
 		placeholder="$archive_path/run/empty-default.log"
 		: >| "$placeholder"
-		replace_symlink "$placeholder" "$archive_path/default.log"
+		__replace_symlink --no-dereference --force --symbolic --  "$placeholder" "$archive_path/default.log"
 	fi
 	if [[ ! -f "$run_error_log" ]]; then
 		placeholder="$archive_path/run/empty-error.log"
 		: >| "$placeholder"
-		replace_symlink "$placeholder" "$archive_path/error.log"
+		__replace_symlink --no-dereference --force --symbolic --  "$placeholder" "$archive_path/error.log"
 	fi
 	if [[ ! -f "$failed_items_log" ]]; then
 		placeholder="$archive_path/run/empty-failed-items.log"
 		: >| "$placeholder"
-		replace_symlink "$placeholder" "$archive_path/failed-items.log"
+		__replace_symlink --no-dereference --force --symbolic --  "$placeholder" "$archive_path/failed-items.log"
 	fi
 }
 

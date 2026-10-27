@@ -33,6 +33,7 @@ accept_valid_status() {
 
 abort_on_interrupt() {
 	local status="${1:-$?}"
+	set +x
 
 	if (( status == 130 || status == 143 )); then
 		exit "$status"
@@ -62,17 +63,6 @@ backup_directory_for() {
 	fi
 	backup_root="$(backup_root_for "$data_root")"
 	printf '%s\n' "$backup_root/$relative/__backups"
-}
-
-replace_symlink() {
-	local target="$1"
-	local link="$2"
-	if [[ -e "$link" && ! -L "$link" ]]; then
-		__error "refusing to replace non-symlink %s" "$link"
-		local_exit_failsafe
-	fi
-
-	ln -nfs -- "$target" "$link"
 }
 
 load_from_file() {
