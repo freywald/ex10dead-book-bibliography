@@ -21,14 +21,11 @@ load_configuration_file() {
 		local_exit_failsafe
 	fi
 
-	if ! command -v "yq" >"/dev/null"; then
-		__error "yq is required to read %s" "$file"
-		local_exit_failsafe
-	fi
+	__guard_program_exists "yq"
 
 	local status=0
 	local json
-	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || status="$(abort_on_interrupt "$?")"
+	json="$(expand -t "4" -- "$file" | yq --output-format=json "." )" || status="$(__abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		return "$status"
 	fi

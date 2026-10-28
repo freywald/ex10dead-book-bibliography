@@ -94,7 +94,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_backup_file() {
 
 	local status=0
 	local hash
-	hash="$(sha256sum -- "$file" | awk '{print $1}')" || status="$(abort_on_interrupt "$?")"
+	hash="$(sha256sum -- "$file" | awk '{print $1}')" || status="$(__abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		return "$status"
 	fi
@@ -112,7 +112,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_backup_file() {
 	fi
 
 	status=0
-	zip --no-wild --junk-paths --test "$destination" "$file" >"/dev/null" || status="$(abort_on_interrupt "$?")"
+	zip --no-wild --junk-paths --test "$destination" "$file" >"/dev/null" || status="$(__abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		return "$status"
 	fi
@@ -214,7 +214,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 	__info "Writing screenshot to: %s" "$output_directory"
 
 	status=0
-	handler_webpage_archive_write_screenshot_with_screenshot_scraper_backup_file "$output_directory" || status="$(abort_on_interrupt "$?")"
+	handler_webpage_archive_write_screenshot_with_screenshot_scraper_backup_file "$output_directory" || status="$(__abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		__warn "screenshot backup failed for %s" "$url"
 		return "$status"
@@ -240,7 +240,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 	} >| "$page_script_file"
 
 	mkdir --parents -- "$(dirname -- "$output_directory")"
-	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$page_script_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status="$(abort_on_interrupt "$?")"
+	shot-scraper "$url" --output "$output_directory" --log-console --width "$screenshot_width" --scale-factor "$screenshot_browser_device_pixel_ratio" --format png --auth "$auth_file" --js-file "$page_script_file" --bypass-csp --reduced-motion --timeout 120000 --wait 10000 --wait-for "document.documentElement.getAttribute('data-screenshot-ready') === '1'" >| "$log_file" 2>&1 || status="$(__abort_on_interrupt "$?")"
 	cat -- "$log_file" >&2
 
 	if grep --quiet 'status of 429' -- "$log_file"; then

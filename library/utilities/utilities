@@ -4,44 +4,6 @@ source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/load-con
 
 # script start
 
-accept_valid_status() {
-	local status="${1:-$?}"
-
-	if (( status == 148 )); then
-		local waited=148
-		while (( waited == 148 )); do
-			kill -TSTP "$$"
-			waited=0
-			wait || waited=$?
-		done
-
-		printf '%s\n' "$waited"
-
-		return 0
-	fi
-
-	if (( status > 0 )); then
-		printf '%s\n' "$status"
-
-		return 0
-	fi
-
-	printf '0\n'
-
-	return 0
-}
-
-abort_on_interrupt() {
-	local status="${1:-$?}"
-	set +x
-
-	if (( status == 130 || status == 143 )); then
-		exit "$status"
-	fi
-
-	accept_valid_status "$status"
-}
-
 backup_root_for() {
 	local data_root="$1"
 	local base

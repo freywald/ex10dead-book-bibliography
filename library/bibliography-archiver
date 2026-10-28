@@ -3,8 +3,8 @@
 LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH="Build/libraries/ex10dead-book-bibliography/" # @todo set from outside
 LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH="Build/libraries/" # @todo set from outside
 
-source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/sourcetree-datafile-format/sourcetree-datafile-format" || exit 1
-source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/sourcetree-datafile-format/sourcetree-datafile-format.bibliography" || exit 1
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/library/sourcetree-datafile-format/library/sourcetree-datafile-format" || exit 1
+source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/library/sourcetree-datafile-format/library/sourcetree-datafile-format.bibliography" || exit 1
 source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/build-base" || exit 1
 source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/utilities" || exit 1
 
@@ -376,7 +376,7 @@ print_archive_status() {
 			local headers
 			local status=0
 			local http_status
-			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || status="$(abort_on_interrupt "$?")"
+			headers="$(curl "${curl_args[@]}" -- "$queued_url")" || status="$(__abort_on_interrupt "$?")"
 
 			if (( status != 0 )); then
 				headers=""
@@ -400,7 +400,7 @@ print_archive_status() {
 				local remote_mtime=0
 				status=0
 				if [[ -n "$last_modified" ]]; then
-					remote_mtime="$(date --date="$last_modified" "+%s")" || status="$(abort_on_interrupt "$?")"
+					remote_mtime="$(date --date="$last_modified" "+%s")" || status="$(__abort_on_interrupt "$?")"
 					if (( status != 0 )); then
 						__error "bad Last-Modified %s" "$last_modified"
 						return "$status"
@@ -410,7 +410,7 @@ print_archive_status() {
 				local local_mtime=0
 				status=0
 				if [[ -f "$zip_archive" ]]; then
-					local_mtime="$(stat --format="%Y" -- "$zip_archive")" || status="$(abort_on_interrupt "$?")"
+					local_mtime="$(stat --format="%Y" -- "$zip_archive")" || status="$(__abort_on_interrupt "$?")"
 					if (( status != 0 )); then
 						__error "cannot stat %s" "$zip_archive"
 						return "$status"

@@ -112,13 +112,13 @@ handler_webpage_archive_write_webpage_light_with_wget_backup() {
 		i=$((i + 1)) || __expression_may_fail
 	done
 	local status=0
-	destination="$(realpath --canonicalize-missing -- "$destination")" || status="$(abort_on_interrupt "$?")"
+	destination="$(realpath --canonicalize-missing -- "$destination")" || status="$(__abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		return "$status"
 	fi
 	__info "Writing backup zip %s" "$destination"
 	status=0
-	(cd -- "$directory" && zip --no-wild --test --move "$destination" -- ".") || status="$(abort_on_interrupt "$?")"
+	(cd -- "$directory" && zip --no-wild --test --move "$destination" -- ".") || status="$(__abort_on_interrupt "$?")"
 	return "$status"
 }
 
@@ -141,7 +141,7 @@ handler_webpage_archive_write_webpage_light_with_wget_download() {
 			return 0
 		fi
 		status=0
-		handler_webpage_archive_write_webpage_light_with_wget_backup "$(dirname -- "$expected_zip")" "$expected_zip" || status="$(abort_on_interrupt "$?")"
+		handler_webpage_archive_write_webpage_light_with_wget_backup "$(dirname -- "$expected_zip")" "$expected_zip" || status="$(__abort_on_interrupt "$?")"
 		if (( status != 0 )); then
 			__warn "wget-text backup failed for %s" "$url"
 			return "$status"
@@ -155,7 +155,7 @@ handler_webpage_archive_write_webpage_light_with_wget_download() {
 			return 0
 		fi
 		status=0
-		handler_webpage_archive_write_webpage_light_with_wget_backup "$output_directory" || status="$(abort_on_interrupt "$?")"
+		handler_webpage_archive_write_webpage_light_with_wget_backup "$output_directory" || status="$(__abort_on_interrupt "$?")"
 		if (( status != 0 )); then
 			__warn "wget-text backup failed for %s" "$url"
 			return "$status"
@@ -174,11 +174,11 @@ handler_webpage_archive_write_webpage_light_with_wget_download() {
 		done < "$wget_text_arguments_file"
 	fi
 	args+=("${wget_text_arguments[@]}")
-	wget "${args[@]}" --directory-prefix="$output_directory" --domains="$domain" -- "$url" || status="$(abort_on_interrupt "$?")"
+	wget "${args[@]}" --directory-prefix="$output_directory" --domains="$domain" -- "$url" || status="$(__abort_on_interrupt "$?")"
 
 	if (( status != 0 )); then
 		local backup_status=0
-		handler_webpage_archive_write_webpage_light_with_wget_backup "$work" || backup_status="$(abort_on_interrupt "$?")"
+		handler_webpage_archive_write_webpage_light_with_wget_backup "$work" || backup_status="$(__abort_on_interrupt "$?")"
 		if (( backup_status != 0 )); then
 			__warn "wget-text backup failed for %s" "$url"
 		fi
@@ -189,7 +189,7 @@ handler_webpage_archive_write_webpage_light_with_wget_download() {
 	if $wget_text_output_as_zip; then
 		mkdir --parents -- "$(dirname -- "$expected_zip")"
 		status=0
-		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || status="$(abort_on_interrupt "$?")"
+		(cd -- "$work" && zip --no-wild --test --move "$expected_zip" -- ".") || status="$(__abort_on_interrupt "$?")"
 		if (( status != 0 )); then
 			handler_webpage_archive_write_webpage_light_with_wget_log_failure "$url" "$expected_zip" "zip exit $status"
 			return "$status"
