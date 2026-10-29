@@ -22,6 +22,3 @@ yq
 # type=apt
 jq
 
-# type=program
-wget2gv
-
