@@ -22,40 +22,40 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_parse_arguments
 	while (($# > 0)); do
 		if [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-width" ]]; then
 			screenshot_width="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-width="* ]]; then
 			screenshot_width="${1#--webpage-archive-write-screenshot-with-screenshot-scraper-width=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-maximum-height" ]]; then
 			screenshot_maximum_height="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-maximum-height="* ]]; then
 			screenshot_maximum_height="${1#--webpage-archive-write-screenshot-with-screenshot-scraper-maximum-height=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-reply-count" ]]; then
 			screenshot_reply_count="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-reply-count="* ]]; then
 			screenshot_reply_count="${1#--webpage-archive-write-screenshot-with-screenshot-scraper-reply-count=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-zoom" ]]; then
 			screenshot_zoom="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-zoom="* ]]; then
 			screenshot_zoom="${1#--webpage-archive-write-screenshot-with-screenshot-scraper-zoom=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-scale-factor" ]]; then
 			screenshot_browser_device_pixel_ratio="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-scale-factor="* ]]; then
 			screenshot_browser_device_pixel_ratio="${1#--webpage-archive-write-screenshot-with-screenshot-scraper-scale-factor=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-screenshot-with-screenshot-scraper-"* ]]; then
 			__error "unknown webpage-archive-write-screenshot-with-screenshot-scraper argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 
@@ -140,7 +140,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_twitter_cookies
 			continue
 		fi
 
-		IFS=$'\t' read -r domain flag path secure expires name value rest <<<"$line" || __expression_may_fail
+		IFS=$'\t' read -r domain flag path secure expires name value rest <<<"$line" ||__expression_may_fail
 
 		if [[ -z "$domain" || -z "$name" ]]; then
 			continue

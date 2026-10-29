@@ -16,7 +16,7 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_parse_argum
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 
@@ -193,7 +193,7 @@ handler_twitter_archive_export_write_conversation_reconstructed_html_backup() {
 	local i=1
 	while [[ -e "$dest" ]]; do
 		dest="$backup_directory/json-to-html-${mtime}_$i.zip"
-		i="$((i + 1))" || __expression_may_fail
+		i="$((i + 1))" ||__expression_may_fail
 	done
 	dest="$(realpath --canonicalize-missing -- "$dest")"
 	local -a files=()

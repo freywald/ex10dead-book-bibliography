@@ -13,22 +13,22 @@ handler_twitter_archive_write_tweet_with_gallerydl_parse_arguments() {
 	while (($# > 0)); do
 		if [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep" ]]; then
 			gallerydl_sleep="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep="* ]]; then
 			gallerydl_sleep="${1#--twitter-archive-write-tweet-with-gallerydl-sleep=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep-request" ]]; then
 			gallerydl_sleep_request="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-sleep-request="* ]]; then
 			gallerydl_sleep_request="${1#--twitter-archive-write-tweet-with-gallerydl-sleep-request=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--twitter-archive-write-tweet-with-gallerydl-"* ]]; then
 			__error "unknown twitter-archive-write-tweet-with-gallerydl argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 
@@ -95,7 +95,7 @@ handler_twitter_archive_write_tweet_with_gallerydl_tweet_complete() {
 		case "$f" in
 			*.part|*.part.*) continue ;;
 		esac
-		files="$((files + 1))" || __expression_may_fail
+		files="$((files + 1))" ||__expression_may_fail
 	done
 
 	(( files >= media_count ))

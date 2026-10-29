@@ -13,25 +13,25 @@ handler_webpage_archive_write_webpage_with_wget_parse_arguments() {
 	while (($# > 0)); do
 		if [[ "$1" == "--webpage-archive-write-webpage-with-wget-wait" ]]; then
 			wget_wait="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-wait="* ]]; then
 			wget_wait="${1#--webpage-archive-write-webpage-with-wget-wait=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-limit-rate" ]]; then
 			wget_limit_rate="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-limit-rate="* ]]; then
 			wget_limit_rate="${1#--webpage-archive-write-webpage-with-wget-limit-rate=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-text-"* ]]; then
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-with-wget-"* ]]; then
 			__error "unknown webpage-archive-write-webpage-with-wget argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 
@@ -102,13 +102,13 @@ handler_webpage_archive_write_webpage_with_wget_download() {
 	__debug "$headers"
 
 	local last_modified
-	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2-)"
+	last_modified="$(printf '%s\n' "$headers" | { grep -i '^last-modified:' ||__expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2-)"
 	last_modified="${last_modified-}"
 	last_modified="${last_modified#"${last_modified%%[![:space:]]*}"}"
 	last_modified="${last_modified%"${last_modified##*[![:space:]]}"}"
 
 	local etag
-	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' || __expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
+	etag="$(printf '%s\n' "$headers" | { grep -i '^etag:' ||__expression_may_fail; } | head --lines=1 | cut --delimiter=: --fields=2- | tr --delete '\" ')"
 
 	local remote_mtime=0
 	status=0
@@ -371,7 +371,7 @@ handler_webpage_archive_write_webpage_with_wget_download() {
 		handler_webpage_archive_write_webpage_with_wget_log_failure "$url" "$zip_archive" "zip exit $status"
 		return "$status"
 	fi
-	rmdir -- "$directory" || __expression_may_fail
+	[[ -d "$directory" ]] && rmdir -- "$directory" ||__expression_may_fail
 
 	if (( remote_mtime > 0 )); then
 		touch --date="@$remote_mtime" "$zip_archive"

@@ -13,16 +13,16 @@ handler_webpage_archive_write_html_with_singlefile_parse_arguments() {
 	while (($# > 0)); do
 		if [[ "$1" == "--webpage-archive-write-html-with-singlefile-wait-until" ]]; then
 			singlefile_wait_until="${2-}"
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-html-with-singlefile-wait-until="* ]]; then
 			singlefile_wait_until="${1#--webpage-archive-write-html-with-singlefile-wait-until=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-html-with-singlefile-"* ]]; then
 			__error "unknown webpage-archive-write-html-with-singlefile argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 

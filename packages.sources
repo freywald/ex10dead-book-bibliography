@@ -1,0 +1,27 @@
+# name=sourcetree_datafile_format
+# type=url
+https://github.com/freywald/sourcetree-datafile-format
+
+# name=weasy_print
+# tag=v70
+https://github.com/Kozea/WeasyPrint
+
+# name=single_file_cli
+# tag=2.11.2
+https://github.com/gildas-lormeau/single-file-cli
+
+# type=apt
+python3
+
+# type=apt
+python3-minimal
+
+# type=apt
+yq
+
+# type=apt
+jq
+
+# type=program
+wget2gv
+

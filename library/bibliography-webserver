@@ -1,7 +1,7 @@
 #!/bin/bash
 
-LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH="Build/libraries/ex10dead-book-bibliography/" # @todo set from outside
-LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH="Build/libraries/" # @todo set from outside
+#LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH="Build/libraries/ex10dead-book-bibliography/" # @todo set from outside
+#LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH="Build/libraries/" # @todo set from outside
 
 source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/library/sourcetree-datafile-format/library/sourcetree-datafile-format" || exit 1
 source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/library/sourcetree-datafile-format/library/sourcetree-datafile-format.bibliography" || exit 1
@@ -40,37 +40,37 @@ function bibliography_webserver() {
 	while (($# > 0)); do
 		if [[ "$1" == "--debug" ]]; then
 			__debug=true
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--verbose" ]]; then
 			__verbose=true
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--quiet" ]]; then
 			__quiet=true
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--walk-archive" || "$1" == "--all" ]]; then
 			walk_archive=true
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--configuration-file" ]]; then
 			if [[ -z "${2-}" ]]; then
 				__error "--configuration-file requires a path"
 				local_exit_failsafe
 			fi
 			configuration_files+=("$2")
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--configuration-file="* ]]; then
 			if [[ -z "${1#--configuration-file=}" ]]; then
 				__error "--configuration-file requires a path"
 				local_exit_failsafe
 			fi
 			configuration_files+=("${1#--configuration-file=}")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--extras" ]]; then
 			show_extras=true
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 	set -- "${arguments[@]}"
@@ -215,7 +215,7 @@ function bibliography_webserver() {
 			local i
 			for ((i = 0; i < ${#menu_paths[@]}; i++)); do
 				local num
-				num="$((i + 1))" || __expression_may_fail
+				num="$((i + 1))" ||__expression_may_fail
 				printf "  %2d  %s\n" "$num" "${menu_labels["$i"]}"
 			done
 			echo

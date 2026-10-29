@@ -16,7 +16,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files_parse_arguments() {
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 
@@ -226,7 +226,7 @@ handler_twitter_manage_archive_cleanup_duplicate_files() {
 				printf 'moved: %s\n' "$other_zip" >> "$log"
 				echo mv -- "$other_zip" "$destination"
 
-				cleaned="$((cleaned + 1))" || __expression_may_fail
+				cleaned="$((cleaned + 1))" ||__expression_may_fail
 			done
 		done
 	done

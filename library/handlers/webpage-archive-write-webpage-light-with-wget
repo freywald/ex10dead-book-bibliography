@@ -15,32 +15,32 @@ handler_webpage_archive_write_webpage_light_with_wget_parse_arguments() {
 	while (($# > 0)); do
 		if [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-argument" ]]; then
 			wget_text_arguments+=("${2-}")
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-argument="* ]]; then
 			wget_text_arguments+=("${1#--webpage-archive-write-webpage-light-with-wget-argument=}")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-arguments-from-file" ]]; then
 			wget_text_arguments_file="${2-}"
 			if [[ -z "$wget_text_arguments_file" ]]; then
 				__error "--webpage-archive-write-webpage-light-with-wget-arguments-from-file requires a path"
 				local_exit_failsafe
 			fi
-			shift 2 || __expression_may_fail
+			shift 2 ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-arguments-from-file="* ]]; then
 			wget_text_arguments_file="${1#--webpage-archive-write-webpage-light-with-wget-arguments-from-file=}"
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-output-as-zip" ]]; then
 			wget_text_output_as_zip=true
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-output-as-files" ]]; then
 			wget_text_output_as_zip=false
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		elif [[ "$1" == "--webpage-archive-write-webpage-light-with-wget-"* ]]; then
 			__error "unknown webpage-archive-write-webpage-light-with-wget argument %s" "$1"
 			local_exit_failsafe
 		else
 			arguments+=("$1")
-			shift || __expression_may_fail
+			shift ||__expression_may_fail
 		fi
 	done
 
@@ -93,7 +93,7 @@ handler_webpage_archive_write_webpage_light_with_wget_backup() {
 			local i=1
 			while [[ -e "$destination" ]]; do
 				destination="$backup_directory/$(basename -- "$expected_zip" .zip)-${stamp}_$i.zip"
-				i=$((i + 1)) || __expression_may_fail
+				i=$((i + 1)) ||__expression_may_fail
 			done
 
 			mv -- "$expected_zip" "$destination"
@@ -109,7 +109,7 @@ handler_webpage_archive_write_webpage_light_with_wget_backup() {
 	local i=1
 	while [[ -e "$destination" ]]; do
 		destination="$backup_directory/wget-text-${stamp}_$i.zip"
-		i=$((i + 1)) || __expression_may_fail
+		i=$((i + 1)) ||__expression_may_fail
 	done
 	local status=0
 	destination="$(realpath --canonicalize-missing -- "$destination")" || status="$(__abort_on_interrupt "$?")"
