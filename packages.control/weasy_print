@@ -1,0 +1,16 @@
+#!/bin/bash
+
+function weasy_print_setup() {
+	__info "setting up weasy_print"
+
+	cd "$__weasy_print_library_path/"
+
+	python3 -m venv venv
+	venv/bin/python -m pip install --upgrade pip
+	venv/bin/python -m pip install .
+	venv/bin/weasyprint --info
+
+	__success "setting up weasy_print"
+}
+
+register_handler "weasy_print_setup" "weasy_print_setup"
