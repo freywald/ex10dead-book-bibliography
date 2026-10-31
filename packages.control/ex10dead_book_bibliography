@@ -1,0 +1,13 @@
+#!/bin/bash
+
+function ex10dead_book_bibliography_setup() {
+	__info "setting up ex10dead_book_bibliography"
+
+	cd "$__ex10dead_book_bibliography_library_path/"
+
+	echo "$PWD"
+
+	__success "setting up ex10dead_book_bibliography"
+}
+
+register_handler "ex10dead_book_bibliography" "ex10dead_book_bibliography_setup"
