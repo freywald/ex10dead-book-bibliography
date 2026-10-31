@@ -10,4 +10,4 @@ function single_file_cli_setup() {
 	__success "setting up single_file_cli"
 }
 
-register_handler "single_file_cli_setup" "single_file_cli_setup"
+register_handler "single_file_cli" "single_file_cli_setup"
