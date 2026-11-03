@@ -10,7 +10,9 @@ function weasy_print_setup() {
 	venv/bin/python -m pip install "."
 	venv/bin/weasyprint --info
 
+	echo "$PWD"
+
 	__success "setting up weasy_print"
 }
 
-register_handler "weasy_print_setup" "weasy_print_setup"
+register_handler "weasy_print" "weasy_print_setup"
