@@ -229,6 +229,8 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 	local page_script_file="$work_directory/page.js"
 	local log_file="$work_directory/shot-scraper.log"
 
+	echo zz "$screenshot_cookie_file" "$auth_file"
+
 	if ! handler_webpage_archive_write_screenshot_with_screenshot_scraper_cookies_to_storage_state "$screenshot_cookie_file" "$auth_file"; then
 		handler_was_skipped=true
 		return 21
