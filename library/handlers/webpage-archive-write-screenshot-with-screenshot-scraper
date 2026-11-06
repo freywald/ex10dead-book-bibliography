@@ -208,6 +208,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 
 	if [[ -f "$output_directory" ]] && ! $force_update_existing; then
 		__verbose "Skipping screenshot %s, file exists" "$output_directory"
+		handler_was_skipped=true
 		return 0
 	fi
 
@@ -217,6 +218,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 	handler_webpage_archive_write_screenshot_with_screenshot_scraper_backup_file "$output_directory" || status="$(__abort_on_interrupt "$?")"
 	if (( status != 0 )); then
 		__warn "screenshot backup failed for %s" "$url"
+		handler_was_skipped=true
 		return "$status"
 	fi
 	handler_webpage_archive_write_screenshot_with_screenshot_scraper_require_page_script || return 22
@@ -228,6 +230,7 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 	local log_file="$work_directory/shot-scraper.log"
 
 	if ! handler_webpage_archive_write_screenshot_with_screenshot_scraper_cookies_to_storage_state "$screenshot_cookie_file" "$auth_file"; then
+		handler_was_skipped=true
 		return 21
 	fi
 
@@ -247,11 +250,13 @@ handler_webpage_archive_write_screenshot_with_screenshot_scraper_download() {
 		handler_webpage_archive_write_screenshot_with_screenshot_scraper_log_failure "$url" "HTTP 429" "$log_file" "$output_directory"
 		__warn "HTTP 429 while screenshotting %s, screenshot file not kept" "$url"
 		[[ -f "$output_directory" ]] && rm --force -- "$output_directory"
+		handler_was_skipped=true
 		return 75
 	fi
 	if (( status != 0 )); then
 		handler_webpage_archive_write_screenshot_with_screenshot_scraper_log_failure "$url" "shot-scraper exit $status" "$log_file" "$output_directory"
 		[[ -f "$output_directory" ]] && rm --force -- "$output_directory"
+		handler_was_skipped=true
 		return "$status"
 	fi
 

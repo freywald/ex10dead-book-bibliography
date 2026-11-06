@@ -805,6 +805,7 @@ manage_archive_for_url() {
 		__success "method finished"
 	fi
 	if $archive_run_make_screenshot; then
+		local handler_was_skipped=false
 		local screenshot_existed=false
 		if [[ -f "$screenshot_path" ]] && ! $force_update_existing; then
 			screenshot_existed=true
@@ -825,7 +826,7 @@ manage_archive_for_url() {
 			__failure "method failed for %s" "$url"
 			return 0
 		fi
-		__success "method finished"
+		! $handler_was_skipped && __success "method finished"
 	fi
 
 	local per_url_handler=false
