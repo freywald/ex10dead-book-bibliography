@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/load-configuration" || exit 1
+source -- "./$__ex10dead_book_bibliography_library_path/library/utilities/load-configuration" || exit 1
 
 # script start
 
@@ -46,7 +46,7 @@ load_from_file() {
 
 load_handler() {
 	local file="$1"
-	source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/$file" || exit 1
+	source -- "./$__ex10dead_book_bibliography_library_path/library/$file" || exit 1
 }
 
 archive_relative() {
@@ -154,7 +154,7 @@ archive_zip_path() {
 	if [[ "$url_kind" == "entry" ]]; then
 		zip_archive="$leaf_directory/$(basename -- "$id").zip"
 	elif [[ "$url_kind" == "field" || "$url_kind" == "attribute-field" ]]; then
-		url_pretty="$(sanitize_url_for_dirname "$url")"
+		url_pretty="$(sanitize_url_for_directoryname "$url")"
 		zip_archive="$leaf_directory/$url_pretty.zip"
 	else
 		__error "unknown url kind %s" "$url_kind"

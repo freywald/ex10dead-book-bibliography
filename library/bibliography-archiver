@@ -1,12 +1,9 @@
 #!/bin/bash
 
-#LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH="Build/libraries/ex10dead-book-bibliography/" # @todo set from outside
-#LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH="Build/libraries/" # @todo set from outside
-
-source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/library/sourcetree-datafile-format/library/sourcetree-datafile-format" || exit 1
-source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/library/sourcetree-datafile-format/library/sourcetree-datafile-format.bibliography" || exit 1
-source -- "$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_LIBRARY_PATH/build-base" || exit 1
-source -- "./$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/library/utilities/utilities" || exit 1
+source -- "$__sourcetree_datafile_format_library_path/library/sourcetree-datafile-format/library/sourcetree-datafile-format" || exit 1
+source -- "$__sourcetree_datafile_format_library_path/library/sourcetree-datafile-format/library/sourcetree-datafile-format.bibliography" || exit 1
+source -- "Build/libraries/build-base" || exit 1
+source -- "$__ex10dead_book_bibliography_library_path/library/utilities/utilities" || exit 1
 
 # configuration start
 
@@ -1661,7 +1658,7 @@ bibliography_archive() {
 	declare -A expected_archive_stems=()
 
 	local default_configuration_file
-	default_configuration_file="$LIBRARY_EX10DEAD_BOOK_BIBLIOGRAPHY_PATH/configuration/defaults.yaml"
+	default_configuration_file="$__ex10dead_book_bibliography_library_path/configuration/defaults.yaml"
 	if [[ ! -f "$default_configuration_file" ]]; then
 		__error "default configuration file not found: %s" "$default_configuration_file"
 		local_exit_failsafe
